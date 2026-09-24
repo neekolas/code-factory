@@ -77,14 +77,19 @@ orchestrator takes it.
 
 ## PR triage
 
-Send this to the lane's reviewer when a lane PR gets new review comments or a
-failed check. Put the items in one message: each comment's thread ID, file,
-line, and full text, and each failed job's name and failure summary.
+Send this to the lane's reviewer for each babysit round: when a lane PR's
+checks finish on a new head, or new comments arrive. The reviewer gathers the
+items itself, so the logs and comment bodies stay out of the orchestrator's
+context.
 
 ```text
-Triage these items on PR <N> (head <commit>, worktree <path>). Assume each
-comment can be wrong, and verify it against the code, not its confidence.
-Do not edit tracked files. Do not start subagents.
+Babysit round: PR <N>, head <commit>, worktree <path>. Use the repository's
+PR status and failure-log commands (for example `just ci-status <N>` and
+`just ci-failures <job>`) or `gh`. Read every failed check on this head and
+every review body, conversation comment, and unresolved thread that is not
+already answered by a reply that starts with "🤖 ". Assume each comment can
+be wrong, and verify it against the code, not its confidence. Do not edit
+tracked files, commit, push, resolve threads, or start subagents.
 
 For each item, give one verdict with evidence:
 - DEFECT: a real bug. Give a concrete scenario, the fix location, and the test
@@ -96,9 +101,14 @@ For each item, give one verdict with evidence:
 For a failed check: find the root cause in the log, not the symptom. Say
 whether it is in this PR, on the base branch, or in the environment.
 
-Format, one line per item:
-- <thread ID or job> | DEFECT | NOT A DEFECT | OUT OF SCOPE | <evidence or fix>
+Reply on the thread yourself for each NOT A DEFECT item ("🤖 " and the
+evidence) and each OUT OF SCOPE item ("🤖 Flagged for the PR author: " and the
+reason). Leave those threads open.
+
+Final message, one line per item:
+- <thread ID or job> | DEFECT | NOT A DEFECT (replied) | OUT OF SCOPE (replied) | BASE | ENV | <evidence or fix>
+End with the head commit you read and "no new items" when there are none.
 ```
 
-The orchestrator sends the DEFECT items to the lane's implementer, and posts
-the replies after the fix is pushed.
+The orchestrator sends the DEFECT items to the lane's implementer. After the
+fix is pushed, it posts "🤖 Fixed in <commit>" and resolves those threads.

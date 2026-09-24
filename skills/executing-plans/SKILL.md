@@ -204,24 +204,31 @@ When every task in a PR is done:
 3. Start the next planned task before you end your turn. A milestone is not a
    stopping point.
 4. Follow the PR until it is ready: failed checks, review comments, merge
-   conflicts. You do this yourself, with `babysit-pr` when it exists. The
-   lane's sessions do the rest; start no other agent.
-   - **You check.** Take the CI status, the failed-job summaries, and the new
-     comments with the repository's commands. Read the failure log, and check
-     the known failures, before you call a failure flaky. Resolve merge
-     conflicts and rebases yourself.
-   - **The reviewer triages.** Send the new comments and failure summaries to
-     the lane's reviewer in one message. It verifies each one adversarially
-     against the code and returns a verdict with evidence: real defect, not a
-     defect, or out of scope (a design or scope question for the owner).
-   - **The implementer fixes.** Send the real defects to the lane's
-     implementer as its next turn. If it is in the middle of a task, the fixes
-     go after that turn ends, unless the PR blocks other work. It fixes,
-     cleans, and commits. The reviewer checks only those fixes.
-   - **You prove and push.** Run the brief's targeted checks on the fix
-     commit, push once, and answer each thread: "Fixed in <commit>" and
-     resolve, or the reviewer's evidence and leave open. Flag out-of-scope
-     items to the owner.
+   conflicts. Use `babysit-pr` when it exists. The lane's reviewer does the
+   read side of each round; you do the write side. Start no other agent.
+   - **You wait and trigger.** Wait cheaply: a background watch on the PR's
+     checks, or a platform notification. Do not poll in your own context.
+     When the head's checks finish or new comments arrive, send the lane's
+     reviewer one message: "Babysit round: PR <N>, head <commit>" with the
+     PR triage prompt from `references/review-prompt.md`.
+   - **The reviewer reads and judges.** It takes the snapshot, reads the
+     failure logs and every new comment, and verifies each item adversarially
+     against the code. It posts the "not a defect" and "flagged for the owner"
+     replies itself, because they need only its evidence. It never edits
+     tracked files, commits, pushes, or resolves threads. It returns a short
+     list: the defects to fix (each with the test that must fail first), the
+     failures that belong to the base branch or the environment, and the
+     items for the owner. The CI logs and comment bodies stay out of your
+     context.
+   - **The implementer fixes.** Send the defects to the lane's implementer as
+     its next turn. If it is in the middle of a task, the fixes go after that
+     turn ends, unless the PR blocks other work. It fixes, cleans, and
+     commits. The reviewer checks only those fixes.
+   - **You prove and push.** Only you move sessions and branches. Run the
+     brief's targeted checks on the fix commit, restack the PRs above it
+     (they can belong to other lanes), push once, then post "Fixed in
+     <commit>" on each fixed thread and resolve it. Take a base-branch
+     failure or an owner item yourself.
    - **Ready** means every required check is green on the PR's current head
      commit. A red or pending check is not ready, and neither is a green run
      on an earlier commit. Do not report a PR or its tasks as ready or

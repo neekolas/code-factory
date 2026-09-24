@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: Use when monitoring one PR or a whole stack of PRs until it is ready — fixing CI failures, responding to review comments, resolving merge conflicts, and pushing verified fixes autonomously in a long-running loop. In an executing-plans run, the lane's reviewer triages and the lane's implementer fixes; no new agents. Works with Graphite (gt) stacks, GitHub stacked PRs (gh stack), and standalone branches.
+description: Use when monitoring one PR or a whole stack of PRs until it is ready — fixing CI failures, responding to review comments, resolving merge conflicts, and pushing verified fixes autonomously in a long-running loop. In an executing-plans run, the lane's reviewer reads and triages each round, the lane's implementer fixes, and the orchestrator pushes; no new agents. Works with Graphite (gt) stacks, GitHub stacked PRs (gh stack), and standalone branches.
 ---
 
 # Babysit PR
@@ -22,19 +22,24 @@ Monitor a PR — or an entire stack — in a loop: snapshot status, fix the high
 
 When the PR belongs to a lane of an `executing-plans` run, the lane's sessions
 do the work. Start no other agent: no per-check or per-comment subagents, and
-no separate fixer.
+no separate fixer. The lane's reviewer does the read side of each round; the
+orchestrator does the write side. Each session keeps exactly one driver.
 
-- **You (the orchestrator) check.** Take the snapshots, the failed-job
-  summaries, and the new comments with the repository's commands. Resolve
-  merge conflicts and restacks yourself.
-- **The lane's reviewer triages.** Send it the failure summaries and the new
-  comments in one message. It verifies each one adversarially against the code
-  and returns a verdict with evidence: real defect, not a defect, or out of
-  scope.
-- **The lane's implementer fixes.** Send it the real defects as its next turn.
-  It fixes, cleans, and commits. The reviewer checks only those fixes.
-- **You prove and push.** Run the targeted checks on the fix commits, push the
-  stack once, and post the replies below.
+- **The orchestrator waits and triggers.** It waits cheaply (a background
+  watch on the checks, or a notification) and sends the lane's reviewer
+  "Babysit round: PR <N>, head <commit>" with the PR triage prompt in
+  `executing-plans/references/review-prompt.md`.
+- **The lane's reviewer reads and judges.** It runs steps 1, 3 and 4 below as
+  reads: snapshot, failure logs, every new comment, an adversarial verdict for
+  each item. It posts the "🤖 not a defect" and "🤖 flagged for the PR
+  author" replies itself. It never edits tracked files, commits, pushes, or
+  resolves threads. It returns the defects (each with the test that must fail
+  first), the base-branch or environment failures, and the owner items.
+- **The lane's implementer fixes** the defects as its next turn, and the
+  reviewer checks only those fixes.
+- **The orchestrator proves and pushes.** It resolves conflicts, restacks
+  (PRs above can belong to other lanes), runs the targeted checks, pushes the
+  stack once, posts "🤖 Fixed in <commit>", and resolves those threads.
 
 Outside a run, when no lane sessions exist, use the steps below as written.
 
@@ -125,4 +130,5 @@ Every PR in the stack: all **required** checks passing on HEAD, every review thr
 | Implementing a reviewer's architectural suggestion | That's the author's call — reply, flag, leave open |
 | Trusting this session's memory of previous iterations | The state file is the memory; read it, update it, every iteration |
 | Fetching CI logs into the main context | One subagent per failing check; keep this context for decisions. In an orchestrated run, the lane's reviewer reads them |
-| Starting a new fixer agent for each round in an orchestrated run | Send triage to the lane's reviewer and fixes to the lane's implementer; both already know the code |
+| Starting a new fixer agent for each round in an orchestrated run | The lane's reviewer reads and judges; the lane's implementer fixes; both already know the code |
+| Letting the reviewer push, resolve, or resume the implementer | Only the orchestrator moves sessions and branches; one driver per session |
