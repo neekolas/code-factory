@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-} ${2:-}" in
+  'pr view')
+    printf '%s\n' '{"number":42,"url":"https://example.test/pull/42","state":"OPEN","isDraft":false,"headRefName":"topic","headRefOid":"abc123","baseRefName":"main","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN"}'
+    ;;
+  'pr checks')
+    shift 2
+    [[ ${1:-} == 42 ]] || exit 2
+    shift
+    if [[ ${1:-} == --required ]]; then
+      [[ ${2:-} == --json && ${3:-} == name,bucket && $# -eq 3 ]] || exit 2
+      case ${GH_CASE:?} in
+        passing|optional_failure)
+          if [[ $GH_CASE == optional_failure ]]; then
+            echo "no required checks reported on the 'topic' branch" >&2
+            exit 1
+          fi
+          printf '%s\n' '[{"name":"compile","bucket":"pass"}]'
+          ;;
+        required_failure)
+          printf '%s\n' '[{"name":"compile","bucket":"fail"}]'
+          exit 1
+          ;;
+        pending)
+          printf '%s\n' '[{"name":"compile","bucket":"pending"}]'
+          exit 8
+          ;;
+        none)
+          printf '%s\n' '[]'
+          ;;
+        required_error)
+          echo 'Required checks API unavailable' >&2
+          exit 1
+          ;;
+        *) exit 2 ;;
+      esac
+    else
+      [[ ${1:-} == --json && ${2:-} == name,state,bucket,link && $# -eq 2 ]] || exit 2
+      case ${GH_CASE:?} in
+        passing|optional_failure|pending|required_error)
+          if [[ $GH_CASE == optional_failure ]]; then
+            printf '%s\n' '[{"name":"compile","state":"SUCCESS","bucket":"pass","link":"https://example.test/compile"},{"name":"docs","state":"FAILURE","bucket":"fail","link":"https://example.test/docs"}]'
+            exit 1
+          elif [[ $GH_CASE == pending ]]; then
+            printf '%s\n' '[{"name":"compile","state":"IN_PROGRESS","bucket":"pending","link":"https://example.test/compile"}]'
+            exit 8
+          else
+            printf '%s\n' '[{"name":"compile","state":"SUCCESS","bucket":"pass","link":"https://example.test/compile"}]'
+          fi
+          ;;
+        required_failure)
+          printf '%s\n' '[{"name":"compile","state":"FAILURE","bucket":"fail","link":"https://example.test/compile"},{"name":"docs","state":"SUCCESS","bucket":"pass","link":"https://example.test/docs"}]'
+          exit 1
+          ;;
+        none)
+          printf '%s\n' '[]'
+          ;;
+        gh_error)
+          printf 'API unavailable\nRetry later\n' >&2
+          exit 1
+          ;;
+        *) exit 2 ;;
+      esac
+    fi
+    ;;
+  'repo view')
+    printf '%s\n' 'owner repo'
+    ;;
+  'api graphql')
+    printf '%s\n' '0'
+    ;;
+  *) exit 2 ;;
+esac

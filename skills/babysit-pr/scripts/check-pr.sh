@@ -7,8 +7,9 @@
 #
 # Output keys:
 #   PR, URL, STATE, DRAFT, BRANCH, BASE, HEAD_SHA, MERGEABLE, MERGE_STATE
-#   CI=PASS|FAIL|PENDING|NONE          (aggregated over the HEAD commit's checks)
-#   REQUIRED_CI=PASS|FAIL|PENDING|NONE (required checks only)
+#   CI=PASS|FAIL|PENDING|NONE|ERROR          (aggregated over the HEAD commit's checks)
+#   REQUIRED_CI=PASS|FAIL|PENDING|NONE|ERROR (required checks only)
+#   CI_ERROR=<first error line>              (only when CI=ERROR)
 #   FAILED_CHECKS_BEGIN … FAILED_CHECKS_END   (name<TAB>required|optional<TAB>link)
 #   UNRESOLVED_THREADS=<n>
 set -euo pipefail
@@ -29,25 +30,56 @@ echo "HEAD_SHA=$(jq -r .headRefOid <<<"$view")"
 echo "MERGEABLE=$(jq -r .mergeable <<<"$view")"
 echo "MERGE_STATE=$(jq -r .mergeStateStatus <<<"$view")"
 
-# gh pr checks uses nonzero exits to signal failing/pending checks — that is
-# data here, not an error.
-checks=$(gh pr checks "$num" --json name,state,bucket,link,required 2>/dev/null) || checks="[]"
-[ -z "$checks" ] && checks="[]"
+# gh pr checks uses nonzero exits to signal failing/pending checks. Its JSON
+# output is still valid in those cases. A missing JSON array is an error.
+error_file=$(mktemp)
+trap 'rm -f "$error_file"' EXIT
+checks=$(gh pr checks "$num" --json name,state,bucket,link 2>"$error_file") || :
+check_error=
+if ! jq -e 'type == "array"' >/dev/null 2>&1 <<<"$checks"; then
+  check_error=$(sed -n '1p' "$error_file")
+  [ -n "$check_error" ] || check_error=${checks%%$'\n'*}
+  [ -n "$check_error" ] || check_error='gh pr checks returned no JSON array'
+else
+  required=$(gh pr checks "$num" --required --json name,bucket 2>"$error_file") || :
+  # gh reports an empty required set as an error message, not JSON.
+  if [ -z "$required" ] && grep -q '^no required checks reported' "$error_file"; then
+    required='[]'
+  fi
+  if ! jq -e 'type == "array"' >/dev/null 2>&1 <<<"$required"; then
+    check_error=$(sed -n '1p' "$error_file")
+    [ -n "$check_error" ] || check_error=${required%%$'\n'*}
+    [ -n "$check_error" ] || check_error='gh pr checks returned no JSON array'
+  else
+    checks=$(jq -n --argjson all "$checks" --argjson required "$required" '
+      $all | map(. as $check | . + {
+        required: any($required[]; .name == $check.name and .bucket == $check.bucket)
+      })')
+  fi
+fi
 
 agg() { # agg '<jq filter for subset>'
   jq -r --arg f "$1" '
-    [.[] | select($f == "all" or .required)] |
-    if length == 0 then "NONE"
-    elif any(.[]; .bucket == "fail" or .bucket == "cancel") then "FAIL"
-    elif any(.[]; .bucket == "pending") then "PENDING"
-    else "PASS" end' <<<"$checks"
+    if length == 0 then "NONE" else
+      [.[] | select($f == "all" or .required)] |
+      if any(.[]; .bucket == "fail" or .bucket == "cancel") then "FAIL"
+      elif any(.[]; .bucket == "pending") then "PENDING"
+      else "PASS" end
+    end' <<<"$checks"
 }
-echo "CI=$(agg all)"
-echo "REQUIRED_CI=$(agg required)"
-
-echo "FAILED_CHECKS_BEGIN"
-jq -r '.[] | select(.bucket == "fail") | [.name, (if .required then "required" else "optional" end), (.link // "-")] | @tsv' <<<"$checks"
-echo "FAILED_CHECKS_END"
+if [ -n "$check_error" ]; then
+  echo 'CI=ERROR'
+  echo 'REQUIRED_CI=ERROR'
+  echo "CI_ERROR=$check_error"
+  echo 'FAILED_CHECKS_BEGIN'
+  echo 'FAILED_CHECKS_END'
+else
+  echo "CI=$(agg all)"
+  echo "REQUIRED_CI=$(agg required)"
+  echo 'FAILED_CHECKS_BEGIN'
+  jq -r '.[] | select(.bucket == "fail" or .bucket == "cancel") | [.name, (if .required then "required" else "optional" end), (.link // "-")] | @tsv' <<<"$checks"
+  echo 'FAILED_CHECKS_END'
+fi
 
 repo=$(gh repo view --json owner,name --jq '.owner.login + " " + .name')
 owner=${repo%% *}

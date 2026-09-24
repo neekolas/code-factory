@@ -86,6 +86,7 @@ scripts/install-opencode.sh --uninstall
 Run these commands from the repository root:
 
 ```sh
+skills/babysit-pr/tests/test-check-pr.sh
 skills/executing-plans/tests/test-codex-session.sh
 python3 skills/session-retro/tests/test_retro_mine.py
 for skill in skills/*; do npx --yes skills-ref@0.1.5 validate "$skill"; done
@@ -94,7 +95,12 @@ python3 scripts/check-versions.py
 claude plugin validate .
 find . -type f -name '*.sh' -print0 | xargs -0 shellcheck -S warning
 shellcheck -S warning skills/executing-plans/tests/bin/codex
+shellcheck -S warning skills/babysit-pr/tests/bin/gh
 ```
+
+For a manual check of the session script against the real Codex CLI, run
+`skills/executing-plans/tests/live-codex-session.sh`. This check needs a
+logged-in `codex` and is not part of CI.
 
 After a change to the shared review agent or its prompt, run
 `python3 scripts/build-agents.py` to update both generated files.

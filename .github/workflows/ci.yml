@@ -24,6 +24,9 @@ jobs:
         run: |
           find . -type f -name '*.sh' -print0 | xargs -0 shellcheck -S warning
           shellcheck -S warning skills/executing-plans/tests/bin/codex
+          shellcheck -S warning skills/babysit-pr/tests/bin/gh
+      - name: Test PR check snapshot
+        run: skills/babysit-pr/tests/test-check-pr.sh
       - name: Test Codex session script
         run: skills/executing-plans/tests/test-codex-session.sh
       - name: Test retro scripts
