@@ -35,7 +35,15 @@ sandbox_args() {
   esac
 }
 
-mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1"; }
+mtime() {
+  local value
+  value=$(stat -f %m "$1" 2>/dev/null) || value=
+  if [[ $value =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$value"
+  else
+    stat -c %Y "$1"
+  fi
+}
 
 # Events of the latest turn only: lines after the offset recorded at its start.
 turn_events() {

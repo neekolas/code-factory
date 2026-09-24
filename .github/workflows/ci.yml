@@ -18,7 +18,7 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y shellcheck
+          sudo apt-get install -y jq shellcheck
           npm install -g @anthropic-ai/claude-code
       - name: Lint shell files
         run: |
