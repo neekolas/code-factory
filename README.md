@@ -20,6 +20,11 @@ links made by the install script.
 The `adversarial-reviewer` agent reviews a change with clean context. Its
 definition comes from one source for Claude Code and OpenCode.
 
+## Design principle
+
+Repository instructions and tools come first. Use scripts bundled with a
+skill only when the repository has no command for the job.
+
 ## Install
 
 ### Claude Code

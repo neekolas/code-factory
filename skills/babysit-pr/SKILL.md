@@ -44,16 +44,25 @@ Persist `.git/babysit-pr-state.json` (inside `.git/` so it can never be committe
   "fixAttempts": {"<branch>:<check-name>": 2}, "handledComments": ["<id>", "..."] }
 ```
 
+## Repository tools first
+
+Check the repository's `AGENTS.md`, `CLAUDE.md`, skills, and task runner
+(`justfile`, `Makefile`, or `package.json` scripts). Use its commands for PR or
+CI status, failed-job logs, annotations, scoped lint and tests, and stack
+operations when they exist. Use this skill's `scripts/check-pr.sh` and plain
+`gh` commands only as fallbacks. For example, use `just ci-status <pr>` and
+`just ci-failures <job>` when the repository provides them.
+
 ## Session loop
 
 Each iteration does **exactly one** of the following, chosen by the first match top-down, then updates the state file, prints what it did and the chosen sleep, and sleeps.
 
-1. **Snapshot.** For each branch in the stack (bottom→top) with a PR, run `scripts/check-pr.sh <pr> <repo-dir>` — greppable `KEY=VALUE` output; judgment stays here, parsing stays in the script. With 3+ PRs, fan the snapshots out to parallel subagents. Skip branches without PRs. No PRs anywhere → exit with an error.
+1. **Snapshot.** For each branch in the stack (bottom→top) with a PR, use the repository's PR status command, or `scripts/check-pr.sh <pr> <repo-dir>` if none exists. Get the HEAD, merge, and CI facts for the guards below. With 3+ PRs, fan the snapshots out to parallel subagents. Skip branches without PRs. No PRs anywhere → exit with an error.
 2. **Merge conflicts first** (`MERGEABLE=CONFLICTING` anywhere): resolve on the **lowest** conflicted branch — conflicts block CI from meaning anything. Rebase per backend (see reference); resolve markers, verify, commit, propagate up, push once.
 3. **CI failures** (`CI=FAIL` on the HEAD commit, lowest affected branch first):
    - **Stale-CI guard:** if the failing run's SHA ≠ current `HEAD_SHA`, treat as PENDING — never dispatch a second fixer for a superseded run.
    - **Give-up guard:** if `fixAttempts[branch:check] ≥ 2` on fresh SHAs, stop fixing that check — report it as needing a human and exclude it from further iterations.
-   - Otherwise: dispatch one subagent per failing check to fetch logs (`gh run view <run-id> --log-failed`) and diagnose — CI logs are verbose; isolating them keeps this context clean. Fix at the root cause, run **targeted** local verification (lint/typecheck changed files, run only the tests exercising them — consult the repo's CLAUDE.md/AGENTS.md for scoped commands), commit, increment `fixAttempts`, propagate, push once. Required checks gate readiness; optional-check failures are best-effort.
+   - Otherwise: dispatch one subagent per failing check to fetch logs with the repository's failure-log command, or `gh run view <run-id> --log-failed` if none exists, and diagnose. CI logs are verbose; isolating them keeps this context clean. Fix at the root cause, run **targeted** local verification with repository commands for scoped lint and tests, commit, increment `fixAttempts`, propagate, push once. Required checks gate readiness; optional-check failures are best-effort.
 4. **Review feedback** (unresolved threads, review bodies, conversation comments — fetch all three buckets; reviewers put their most important feedback in top-level review bodies, not inline). Skip anything resolved, authored by the babysitter (🤖), or in `handledComments`. Triage each remaining item:
 
    | Type | Action |
