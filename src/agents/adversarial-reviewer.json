@@ -1,0 +1,14 @@
+{
+  "name": "adversarial-reviewer",
+  "description": "Review an implementation with clean context and report defects to the caller.",
+  "claude": {
+    "model": "opus"
+  },
+  "opencode": {
+    "mode": "subagent",
+    "model": "anthropic/claude-opus-5-5",
+    "permission": {
+      "edit": "deny"
+    }
+  }
+}

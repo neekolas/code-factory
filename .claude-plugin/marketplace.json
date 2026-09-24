@@ -1,0 +1,15 @@
+{
+  "name": "code-factory",
+  "description": "Skills for planning, implementation, review, and repository care",
+  "owner": {
+    "name": "neekolas",
+    "url": "https://github.com/neekolas"
+  },
+  "plugins": [
+    {
+      "name": "code-factory",
+      "version": "0.1.0",
+      "source": "./"
+    }
+  ]
+}

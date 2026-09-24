@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "code-factory",
+  "version": "0.1.0",
+  "description": "Skills for planning, implementation, review, and repository care",
+  "author": { "name": "Nicholas Molnar" },
+  "repository": "https://github.com/neekolas/code-factory",
+  "license": "MIT",
+  "keywords": ["skills", "planning", "review", "repository"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Code Factory",
+        "shortDescription": "Plan and deliver software changes",
+        "category": "Development"
+      }
+    }
+  }
+}

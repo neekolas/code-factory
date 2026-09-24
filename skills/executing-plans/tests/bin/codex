@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Stub of `codex exec` for tests. FAKE_MODE: ok | fail | hang | ignore_term | silent
+out=""; resume=0; args=("$@")
+for ((i=0; i<${#args[@]}; i++)); do
+  [ "${args[$i]}" = "-o" ] && out=${args[$((i+1))]}
+  [ "${args[$i]}" = "resume" ] && resume=1
+  [ "${args[$i]}" = "-m" ] && echo "${args[$((i+1))]}" >>"${FAKE_MODEL_LOG:-/dev/null}"
+done
+cat >/dev/null   # read the prompt from stdin
+mode=${FAKE_MODE:-ok}
+[ "$mode" = silent ] && { sleep 30; exit 0; }   # hangs before its first event
+[ "$resume" = 0 ] && echo '{"type":"thread.started","thread_id":"stub-thread-1"}'
+echo '{"type":"turn.started"}'
+case "$mode" in
+  ok)   echo '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"ok"}}'
+        echo '{"type":"turn.completed","usage":{}}'; echo "report" >"$out" ;;
+  fail) echo '{"type":"error","message":"boom"}'; exit 1 ;;
+  hang) echo '{"type":"item.started","item":{"id":"item_1","type":"command_execution","status":"in_progress"}}'
+        sleep 300 ;;
+  ignore_term) trap '' TERM; echo '{"type":"item.started","item":{"id":"item_1","type":"command_execution"}}'
+        sleep 300 & wait; sleep 300 ;;
+esac
