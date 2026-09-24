@@ -19,7 +19,7 @@ it.
 
 ```text
 spawn_agent  task_name: "lane-a"      model: "gpt-6-sol"   reasoning_effort: "medium" fork_turns: "none"  message: <implementer message>
-spawn_agent  task_name: "review-t3"   model: "gpt-6-sol"   reasoning_effort: "xhigh"  fork_turns: "none"  message: <review prompt>
+spawn_agent  task_name: "review-a"     model: "gpt-6-sol"   reasoning_effort: "xhigh"  fork_turns: "none"  message: <review prompt>
 spawn_agent  task_name: "chore-ci"    model: "gpt-6-luna"  reasoning_effort: "high"  fork_turns: "none"  message: <chore>
 followup_task  target: "lane-a"  message: <next task, or the findings to fix>
 wait_agent     timeout_ms: 600000
@@ -30,8 +30,9 @@ interrupt_agent target: "lane-a"
 
 - A lane's next task, its fixes, and its CI fixes go to the same `task_name`
   with `followup_task`.
-- A reviewer checks fixes to its own findings through `followup_task` to its
-  own `task_name`. A new review subject gets a new reviewer.
+- A lane has one reviewer `task_name` (for example `review-a`). Send each later
+  task review, fix check, and PR triage to it with `followup_task`. A fresh
+  reviewer is only for a plan review and the final verification.
 - Record each `task_name`, model, worktree, and state in the run log.
 
 ## Waiting and stalls

@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: Use when monitoring one PR or a whole stack of PRs until it is ready — fixing CI failures, responding to review comments, resolving merge conflicts, and pushing verified fixes autonomously in a long-running loop. Works with Graphite (gt) stacks, GitHub stacked PRs (gh stack), and standalone branches.
+description: Use when monitoring one PR or a whole stack of PRs until it is ready — fixing CI failures, responding to review comments, resolving merge conflicts, and pushing verified fixes autonomously in a long-running loop. In an executing-plans run, the lane's reviewer triages and the lane's implementer fixes; no new agents. Works with Graphite (gt) stacks, GitHub stacked PRs (gh stack), and standalone branches.
 ---
 
 # Babysit PR
@@ -17,6 +17,26 @@ Monitor a PR — or an entire stack — in a loop: snapshot status, fix the high
 - **Resolve only threads whose issue you actually fixed.** Scope changes and disagreements stay open for the human.
 - **Fix bottom-up in stacks.** A fix in a lower branch may cure higher branches after restacking; fixing high first gets overwritten.
 - **One push per iteration.** Apply all fixes across the stack locally, then push the whole stack once.
+
+## Inside an orchestrated run
+
+When the PR belongs to a lane of an `executing-plans` run, the lane's sessions
+do the work. Start no other agent: no per-check or per-comment subagents, and
+no separate fixer.
+
+- **You (the orchestrator) check.** Take the snapshots, the failed-job
+  summaries, and the new comments with the repository's commands. Resolve
+  merge conflicts and restacks yourself.
+- **The lane's reviewer triages.** Send it the failure summaries and the new
+  comments in one message. It verifies each one adversarially against the code
+  and returns a verdict with evidence: real defect, not a defect, or out of
+  scope.
+- **The lane's implementer fixes.** Send it the real defects as its next turn.
+  It fixes, cleans, and commits. The reviewer checks only those fixes.
+- **You prove and push.** Run the targeted checks on the fix commits, push the
+  stack once, and post the replies below.
+
+Outside a run, when no lane sessions exist, use the steps below as written.
 
 ## Backend detection (once, at session start)
 
@@ -62,8 +82,8 @@ Each iteration does **exactly one** of the following, chosen by the first match 
 3. **CI failures** (`CI=FAIL` on the HEAD commit, lowest affected branch first):
    - **Stale-CI guard:** if the failing run's SHA ≠ current `HEAD_SHA`, treat as PENDING — never dispatch a second fixer for a superseded run.
    - **Give-up guard:** if `fixAttempts[branch:check] ≥ 2` on fresh SHAs, stop fixing that check — report it as needing a human and exclude it from further iterations.
-   - Otherwise: dispatch one subagent per failing check to fetch logs with the repository's failure-log command, or `gh run view <run-id> --log-failed` if none exists, and diagnose. CI logs are verbose; isolating them keeps this context clean. Fix at the root cause, run **targeted** local verification with repository commands for scoped lint and tests, commit, increment `fixAttempts`, propagate, push once. Required checks gate readiness; optional-check failures are best-effort.
-4. **Review feedback** (unresolved threads, review bodies, conversation comments — fetch all three buckets; reviewers put their most important feedback in top-level review bodies, not inline). Skip anything resolved, authored by the babysitter (🤖), or in `handledComments`. Triage each remaining item:
+   - Otherwise (in an orchestrated run, see above: the lane's reviewer diagnoses and the lane's implementer fixes): dispatch one subagent per failing check to fetch logs with the repository's failure-log command, or `gh run view <run-id> --log-failed` if none exists, and diagnose. CI logs are verbose; isolating them keeps this context clean. Fix at the root cause, run **targeted** local verification with repository commands for scoped lint and tests, commit, increment `fixAttempts`, propagate, push once. Required checks gate readiness; optional-check failures are best-effort.
+4. **Review feedback** (unresolved threads, review bodies, conversation comments — fetch all three buckets; reviewers put their most important feedback in top-level review bodies, not inline). Skip anything resolved, authored by the babysitter (🤖), or in `handledComments`. Triage each remaining item (in an orchestrated run, the lane's reviewer gives the verdict and the lane's implementer makes the fix):
 
    | Type | Action |
    |---|---|
@@ -104,4 +124,5 @@ Every PR in the stack: all **required** checks passing on HEAD, every review thr
 | Forgetting to propagate after a mid-stack fix | Restack/rebase-upstack before touching the next branch; then re-check higher PRs — the restack itself can break them |
 | Implementing a reviewer's architectural suggestion | That's the author's call — reply, flag, leave open |
 | Trusting this session's memory of previous iterations | The state file is the memory; read it, update it, every iteration |
-| Fetching CI logs into the main context | One subagent per failing check; keep this context for decisions |
+| Fetching CI logs into the main context | One subagent per failing check; keep this context for decisions. In an orchestrated run, the lane's reviewer reads them |
+| Starting a new fixer agent for each round in an orchestrated run | Send triage to the lane's reviewer and fixes to the lane's implementer; both already know the code |

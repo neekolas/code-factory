@@ -74,3 +74,31 @@ ISSUES.
 Scope: `local` means the lane's implementer can fix it inside the lane.
 `boundary` means the fix needs other files or changes a shared contract; the
 orchestrator takes it.
+
+## PR triage
+
+Send this to the lane's reviewer when a lane PR gets new review comments or a
+failed check. Put the items in one message: each comment's thread ID, file,
+line, and full text, and each failed job's name and failure summary.
+
+```text
+Triage these items on PR <N> (head <commit>, worktree <path>). Assume each
+comment can be wrong, and verify it against the code, not its confidence.
+Do not edit tracked files. Do not start subagents.
+
+For each item, give one verdict with evidence:
+- DEFECT: a real bug. Give a concrete scenario, the fix location, and the test
+  that must fail before the fix.
+- NOT A DEFECT: give the evidence (file and line, a test name, or a command
+  and its output) that the reply to the thread will cite.
+- OUT OF SCOPE: a design, style, or scope question for the owner. Say why.
+
+For a failed check: find the root cause in the log, not the symptom. Say
+whether it is in this PR, on the base branch, or in the environment.
+
+Format, one line per item:
+- <thread ID or job> | DEFECT | NOT A DEFECT | OUT OF SCOPE | <evidence or fix>
+```
+
+The orchestrator sends the DEFECT items to the lane's implementer, and posts
+the replies after the fix is pushed.

@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Use when running an approved plan, or any change of several tasks, as an orchestrator - prepares a verified context brief, runs long-lived implementer sessions per lane, a clean-context adversarial review per task, PRs that may span tasks, CI follow-up, and recovery from dead or stalled agent sessions. Has a Claude Code variant and a Codex variant. Replaces code-factory:execute-dynamic-workflow
+description: Use when running an approved plan, or any change of several tasks, as an orchestrator - prepares a verified context brief, runs one long-lived implementer and one long-lived reviewer per lane (the reviewer reviews each task and triages PR comments and CI failures; the implementer fixes them), PRs that may span tasks, CI follow-up by the orchestrator, and recovery from dead or stalled agent sessions. Has a Claude Code variant and a Codex variant. Replaces code-factory:execute-dynamic-workflow
 ---
 
 # Executing plans
@@ -121,11 +121,17 @@ it), stop it, fix the brief, and start again.
   fix loop moves to a stronger model (section 7). A handoff is: the run brief,
   the task brief, `git log --stat <base>..HEAD` for the lane, the uncommitted
   diff summary, and the run log lines for the lane.
-- **Reviewer sessions** are fresh for each review subject. Send fixes back to
-  the same reviewer only to check its own findings.
-- **Chore sessions** run long procedural work: preflight, full verification
-  runs, CI follow-up, log triage, rebases. They report short results, so their
-  output stays out of your context.
+- **Reviewer sessions:** one per lane. Start it at the lane's first review, and
+  keep it for every later task and PR of that lane. It reviews each task
+  commit, checks the fixes for its own findings, and triages the lane's PR
+  review comments and CI failures (section 5). It never writes code, so it
+  stays independent of the implementer. The final verification (section 8)
+  uses a fresh reviewer.
+- **Chore sessions** run long procedural work: preflight and full verification
+  runs. They report short results, so their output stays out of your context.
+- **No extra fixers.** A lane's review findings, PR comments, and CI failures
+  go to that lane's reviewer and implementer. Do not start a new agent to fix
+  or triage them. A new session is only for a dead one, with a handoff.
 - **No relays.** Start the model you want directly. An agent whose only job is
   to drive another agent doubles the tokens and adds a failure point.
 
@@ -139,8 +145,9 @@ For each task, in lane order:
 2. **Make it clean.** The same implementer runs the brief's format, compile,
    and lint commands for the code it changed, fixes every issue, and commits.
    The commit is the review subject.
-3. **Review.** Start a fresh reviewer with `references/review-prompt.md`. Give
-   it the run brief, the task brief, the requirement IDs, and the base and
+3. **Review.** Send the task to the lane's reviewer. On the lane's first
+   review, start it with `references/review-prompt.md`. Give it
+   the run brief, the task brief, the requirement IDs, and the base and
    candidate commits. It runs the task's proofs itself, so it needs a sandbox
    that can build (the same one as the implementer). Record `git status
    --porcelain` before and after: a review must leave tracked files unchanged.
@@ -197,10 +204,24 @@ When every task in a PR is done:
 3. Start the next planned task before you end your turn. A milestone is not a
    stopping point.
 4. Follow the PR until it is ready: failed checks, review comments, merge
-   conflicts. A chore session can do this; use `babysit-pr` when it exists.
-   Read the failure log, and check the known failures, before you call a
-   failure flaky. Send code fixes to the lane's implementer when its session
-   is alive, otherwise to a new session with a handoff. Push follow-up commits.
+   conflicts. You do this yourself, with `babysit-pr` when it exists. The
+   lane's sessions do the rest; start no other agent.
+   - **You check.** Take the CI status, the failed-job summaries, and the new
+     comments with the repository's commands. Read the failure log, and check
+     the known failures, before you call a failure flaky. Resolve merge
+     conflicts and rebases yourself.
+   - **The reviewer triages.** Send the new comments and failure summaries to
+     the lane's reviewer in one message. It verifies each one adversarially
+     against the code and returns a verdict with evidence: real defect, not a
+     defect, or out of scope (a design or scope question for the owner).
+   - **The implementer fixes.** Send the real defects to the lane's
+     implementer as its next turn. If it is in the middle of a task, the fixes
+     go after that turn ends, unless the PR blocks other work. It fixes,
+     cleans, and commits. The reviewer checks only those fixes.
+   - **You prove and push.** Run the brief's targeted checks on the fix
+     commit, push once, and answer each thread: "Fixed in <commit>" and
+     resolve, or the reviewer's evidence and leave open. Flag out-of-scope
+     items to the owner.
    - **Ready** means every required check is green on the PR's current head
      commit. A red or pending check is not ready, and neither is a green run
      on an earlier commit. Do not report a PR or its tasks as ready or
@@ -276,8 +297,8 @@ notification is not proof that a session is alive.
    requirement ID on the final commit of the top PR: one row per ID with the
    commit, the test or command, and its result. Give it the logged MINOR
    findings to triage. The implementer's claims do not count. This may run
-   while CI runs. Send all valid findings to one fix session in one message,
-   then one scoped re-check; findings still open after that go to the user.
+   while CI runs. Send all valid findings to the owning lane's implementer in
+   one message, then one scoped re-check; findings still open after that go to the user.
    Any later push invalidates the rows its diff can affect; run them again on
    the new commit. The run is complete only when every row is PASS and CI is
    green, both on the same final commit. An UNVERIFIED row is a failure.

@@ -16,7 +16,8 @@ edit.
 - Start with the `Agent` tool: `subagent_type: "general-purpose"`, the role's
   `model`, and a background run. Record the agent ID in the run log.
 - Continue a lane with `SendMessage` to that agent ID. The session keeps its
-  history. Explore and Plan agents cannot be resumed and cannot write files, so
+  history. This holds for the lane's reviewer too: send each later review, fix
+  check, and PR triage to the same reviewer agent ID. Explore and Plan agents cannot be resumed and cannot write files, so
   never use them as implementers or ask them to write a report file.
 - Claude Code runs at most 20 subagents at once. Count Codex background shells
   separately; the machine's build capacity is the tighter limit.
@@ -61,10 +62,12 @@ $S watch "$RUN/sessions" lane-a 1200
 # Next task, or fixes, in the same session (background).
 $S resume "$RUN/sessions" lane-a "$RUN/prompts/lane-a.2.md"
 
-# A Codex reviewer, when the run uses one: a new name for each subject. It builds
-# and runs the proofs, so it uses the implementer's sandbox; check
+# A Codex reviewer, when the run uses one: one name per lane, started at the
+# lane's first review and resumed for each later task, fix check, and PR triage.
+# It builds and runs the proofs, so it uses the implementer's sandbox; check
 # `git status --porcelain` before and after.
-$S start "$RUN/sessions" review-t3 <worktree> gpt-6-sol xhigh write "$RUN/prompts/review-t3.md"
+$S start "$RUN/sessions" review-a <worktree> gpt-6-sol xhigh write "$RUN/prompts/review-a.3.md"
+$S resume "$RUN/sessions" review-a "$RUN/prompts/review-a.pr.md"
 
 # State at any time, and stopping a stalled session.
 $S status "$RUN/sessions" lane-a
