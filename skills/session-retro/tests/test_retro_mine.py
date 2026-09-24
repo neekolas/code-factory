@@ -170,5 +170,11 @@ with tempfile.TemporaryDirectory() as home:
                                     capture_output=True, text=True, check=True).stdout)
     check("recurrence compares instants across time zones", True, agg[0]["fix_ineffective"])
 
+    # A full disk opens the gate by itself, even in a short run.
+    c7 = os.path.join(home, "c7.jsonl")
+    claude_file(c7, [(0, "bash", ("cargo build", "error: failed to write: No space left on device (os error 28)", True))])
+    gate = mine(home, "--repo", repo, "--claude", c7, "--gate-only")["gate"]
+    check("a full disk is a gate reason", True, any("disk filled" in x for x in gate["reasons"]))
+
 print("all passed" if not fails else f"{fails} failed")
 sys.exit(1 if fails else 0)

@@ -33,7 +33,10 @@ FAIL_MARKERS = re.compile(
     r"command not found|unknown recipe|justfile does not contain|no such file or directory|"
     r"unrecognized (option|argument)|unexpected argument|permission denied|operation not permitted|"
     r"traceback \(most recent call last\)|error\[E\d+\]|error: could not compile|"
-    r"address already in use|connection refused|cannot connect to the docker", re.I)
+    r"address already in use|connection refused|cannot connect to the docker|"
+    r"no space left on device|disk quota exceeded|database or disk is full", re.I)
+# A full disk usually means the orchestrator left finished worktrees in place.
+DISK_FULL = re.compile(r"no space left on device|disk quota exceeded|database or disk is full", re.I)
 # A missing command, recipe, or flag is a repository defect even when seen once.
 SCRIPT_CLASS = re.compile(
     r"command not found|unknown recipe|justfile does not contain|"
@@ -243,6 +246,7 @@ def analyse(E):
         incidents.append({"key": key, "err": norm(scrub(err, 400)), "sample_cmd": scrub(json.dumps(inp) if inp else ""),
                           "sample_err": scrub(err), "needle": needle(err), "tokens": toks, "seconds": secs, "agent": E.agent,
                           "script_class": bool(SCRIPT_CLASS.search(err)),
+                          "disk_full": bool(DISK_FULL.search(text[:4000])),
                           "where": {"file": E.path.replace(HOME, "~"), "line": ln},
                           "at": iso(t)})
     return incidents, calls, gaps
@@ -384,18 +388,22 @@ def main():
         reasons.append(f"recovery spans hold {recovery / tokens:.0%} of weighted tokens")
     if any(s["script_class"] for s in sigs):
         reasons.append("a command, recipe, or flag did not exist")
+    disk_full = sum(1 for x in incidents if x["disk_full"])
+    if disk_full:
+        reasons.append(f"the disk filled ({disk_full} failed calls)")
     if len(pain) >= 3:
         reasons.append(f"{len(pain)} user corrections or prods")
     if gaps:
         reasons.append(f"{len(gaps)} gaps over {STALL_S // 60} minutes")
     if compactions:
         reasons.append(f"{compactions} context compactions")
-    if calls < 50 and not any(s["script_class"] for s in sigs):
+    if calls < 50 and not disk_full and not any(s["script_class"] for s in sigs):
         reasons = []
 
     out = {"transcripts": len(transcripts), "tool_calls": calls, "failed_calls": failed,
            "weighted_tokens": round(tokens), "recovery_tokens": round(recovery),
-           "compactions": compactions, "user_prods": len(pain), "stalls": gaps[:20],
+           "compactions": compactions, "user_prods": len(pain), "disk_full_calls": disk_full,
+           "stalls": gaps[:20],
            "gate": {"recommend": bool(reasons), "reasons": reasons}}
     if not a.gate_only:
         top = sigs[:15]

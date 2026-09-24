@@ -51,7 +51,9 @@ The gate recommends; you decide. Weigh `gate.recommend` and its reasons with
 the run log: sessions that died, reviews that repeated, reports that proved
 wrong, time the user had to prod the orchestrator. A long, clean run can trip
 the gate on an expected compaction. When you stop here, tell the user in one
-line why the full retro is not worth its cost.
+line why the full retro is not worth its cost. "The disk filled" is always
+worth a retro: check the run log for worktrees that stayed after their PRs
+merged. That cause is in `executing-plans`, so it is a plugin finding.
 
 ## 2. Analyse
 

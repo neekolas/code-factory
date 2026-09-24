@@ -109,6 +109,10 @@ it), stop it, fix the brief, and start again.
   worktree and branch, made with the repository's worktree method. Limit
   concurrent builds to what the machine can hold. For Rust on a 16-core
   machine that is about three builds with `CARGO_BUILD_JOBS=4` each.
+- **Worktree location.** Make every worktree where the repository's method
+  puts them. Never make one in a session scratchpad: nothing removes it, and
+  each worktree keeps its own build directory. In one run, 7 scratchpad
+  worktrees held 185 GiB and the disk filled twice.
 - **Compaction is fine.** Let implementer sessions, and your own, compact when
   they fill. The run log and the briefs hold the state a compacted session
   needs.
@@ -207,6 +211,12 @@ notification is not proof that a session is alive.
 - **Wait in bounded stretches** of five to ten minutes. After each stretch,
   check every live session's transcript or event log and its worktree, and
   chase any that finished without a report.
+- **Check the disk** after each stretch: `df -h` on the worktrees' volume.
+  Remove a worktree as soon as its PR merges, or its work is pushed and no
+  task remains for it. First release its services with the repository's
+  method, then run `git worktree remove <path>`. When less than 15% of the
+  disk is free, remove every finished worktree before the next build starts.
+  If none is finished, tell the user.
 - **Never remove a worktree that a live session uses as its working
   directory.** Stop the session first, or keep the worktree. A Codex session
   cannot resume after its directory is gone: `codex-session.sh resume` exits
@@ -268,8 +278,8 @@ notification is not proof that a session is alive.
    - Repository stumbling blocks: commands, tools, and environment problems
      that cost time, with the fix.
    Update `Spec changes` if it changed.
-3. **Clean up.** Remove worktrees you made after their work is merged or
-   pushed. Stop live sessions. Delete temporary files.
+3. **Clean up.** Stop live sessions. Then remove the worktrees you made
+   that section 6 did not remove yet, the same way. Delete temporary files.
 4. **Report** to the user: PRs and their state, the requirement matrix (counts,
    and every failure), deviations, model substitutions, and open items.
 5. **No automatic retro.** Do not start `session-retro`. The user runs it
