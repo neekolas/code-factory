@@ -80,38 +80,36 @@ orchestrator takes it.
 
 ## PR triage
 
-Send this to the lane's reviewer for each babysit round: when a lane PR's
-checks finish on a new head, or new comments arrive. The reviewer gathers the
-items itself, so the logs and comment bodies stay out of the orchestrator's
-context.
+Send this to the same lane reviewer after the collector reports new items.
+The collector gathers the logs and comments; the reviewer judges them against
+the code. The orchestrator owns PR replies and thread state.
 
 ```text
-Babysit round: PR <N>, head <commit>, worktree <path>. Use the repository's
-PR status and failure-log commands (for example `just ci-status <N>` and
-`just ci-failures <job>`) or `gh`. Read every failed check on this head and
-every review body, conversation comment, and unresolved thread that is not
-already answered by a reply that starts with "🤖 ". Assume each comment can
-be wrong, and verify it against the code, not its confidence. Do not edit
-tracked files, commit, push, resolve threads, or start subagents.
+Babysit triage: PR <N>, head <commit>, worktree <path>. Read the collector's
+report at <path> and the evidence files it names. Judge every item assigned
+to your lane against the code at that head. If the PR head changed, stop and
+report that the collection is stale. Assume each comment can be wrong; verify
+it against the code, not its confidence. Do not edit tracked files, reply on
+the PR, resolve threads, commit, push, or start subagents.
 
 For each item, give one verdict with evidence:
-- DEFECT: a real bug. Give a concrete scenario, the fix location, and the test
-  that must fail before the fix.
-- NOT A DEFECT: give the evidence (file and line, a test name, or a command
-  and its output) that the reply to the thread will cite.
-- OUT OF SCOPE: a design, style, or scope question for the owner. Say why.
+- DEFECT: reproduce a real bug. Give a concrete scenario, the fix location,
+  and the test that must fail before the fix.
+- NOT A DEFECT: give a concrete answer and the evidence that a PR reply can
+  cite.
+- OWNER: give the design, style, or scope decision the PR author must make.
 
-For a failed check: find the root cause in the log, not the symptom. Say
-whether it is in this PR, on the base branch, or in the environment.
-
-Reply on the thread yourself for each NOT A DEFECT item ("🤖 " and the
-evidence) and each OUT OF SCOPE item ("🤖 Flagged for the PR author: " and the
-reason). Leave those threads open.
+For a failed check, find the root cause in the log, not the symptom. If the
+report lacks evidence you need, read the linked job directly. Say whether the
+failure is in this PR, on the base branch, or in the environment.
 
 Final message, one line per item:
-- <thread ID or job> | DEFECT | NOT A DEFECT (replied) | OUT OF SCOPE (replied) | BASE | ENV | <evidence or fix>
-End with the head commit you read and "no new items" when there are none.
+- <PR, thread ID or job> | DEFECT | NOT A DEFECT | OWNER | BASE | ENV |
+  <scenario, evidence, fix location, or answer>
+End with the head commit you reviewed.
 ```
 
-The orchestrator sends the DEFECT items to the lane's implementer. After the
-fix is pushed, it posts "🤖 Fixed in <commit>" and resolves those threads.
+The orchestrator sends DEFECT items to the lane's implementer. It posts the
+evidence for NOT A DEFECT and OWNER items with a `🤖 ` prefix and leaves those
+threads open. After a fix is pushed, it posts `🤖 Fixed in <commit>` and
+resolves only the fixed threads.

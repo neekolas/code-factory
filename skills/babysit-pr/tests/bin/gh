@@ -12,7 +12,7 @@ case "${1:-} ${2:-}" in
     if [[ ${1:-} == --required ]]; then
       [[ ${2:-} == --json && ${3:-} == name,bucket && $# -eq 3 ]] || exit 2
       case ${GH_CASE:?} in
-        passing|optional_failure)
+        passing|optional_failure|threads_paginated)
           if [[ $GH_CASE == optional_failure ]]; then
             echo "no required checks reported on the 'topic' branch" >&2
             exit 1
@@ -39,7 +39,7 @@ case "${1:-} ${2:-}" in
     else
       [[ ${1:-} == --json && ${2:-} == name,state,bucket,link && $# -eq 2 ]] || exit 2
       case ${GH_CASE:?} in
-        passing|optional_failure|pending|required_error)
+        passing|optional_failure|pending|required_error|threads_paginated)
           if [[ $GH_CASE == optional_failure ]]; then
             printf '%s\n' '[{"name":"compile","state":"SUCCESS","bucket":"pass","link":"https://example.test/compile"},{"name":"docs","state":"FAILURE","bucket":"fail","link":"https://example.test/docs"}]'
             exit 1
@@ -69,7 +69,18 @@ case "${1:-} ${2:-}" in
     printf '%s\n' 'owner repo'
     ;;
   'api graphql')
-    printf '%s\n' '0'
+    case ${GH_CASE:?} in
+      threads_paginated)
+        if [[ " $* " == *' cursor=page2 '* ]]; then
+          printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"isResolved":false}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}'
+        else
+          printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"isResolved":false},{"isResolved":true}],"pageInfo":{"hasNextPage":true,"endCursor":"page2"}}}}}}'
+        fi
+        ;;
+      *)
+        printf '%s\n' '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}'
+        ;;
+    esac
     ;;
   *) exit 2 ;;
 esac

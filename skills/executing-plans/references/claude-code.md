@@ -17,8 +17,12 @@ edit.
   `model`, and a background run. Record the agent ID in the run log.
 - Continue a lane with `SendMessage` to that agent ID. The session keeps its
   history. This holds for the lane's reviewer too: send each later review, fix
-  check, and PR triage to the same reviewer agent ID. Explore and Plan agents cannot be resumed and cannot write files, so
-  never use them as implementers or ask them to write a report file.
+  check, and PR triage to the same reviewer agent ID. Explore and Plan agents
+  cannot be resumed and cannot write files, so never use them as implementers
+  or ask them to write a report file.
+- For one PR feedback round, start one short-lived, read-only general-purpose
+  agent on the cheap chore model. Give it `references/pr-collector.md` and the
+  entire stack. It writes the report and does not triage or fix findings.
 - Claude Code runs at most 20 subagents at once. Count Codex background shells
   separately; the machine's build capacity is the tighter limit.
 - The effort comes from the agent definition. The `Agent` tool sets only the

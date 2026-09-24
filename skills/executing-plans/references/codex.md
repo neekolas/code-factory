@@ -21,6 +21,7 @@ it.
 spawn_agent  task_name: "lane-a"      model: "gpt-6-sol"   reasoning_effort: "medium" fork_turns: "none"  message: <implementer message>
 spawn_agent  task_name: "review-a"     model: "gpt-6-sol"   reasoning_effort: "xhigh"  fork_turns: "none"  message: <review prompt>
 spawn_agent  task_name: "chore-ci"    model: "gpt-6-luna"  reasoning_effort: "high"  fork_turns: "none"  message: <chore>
+spawn_agent  task_name: "pr-round-1"  model: "gpt-6-luna"  reasoning_effort: "medium" fork_turns: "none"  message: <PR collector prompt>
 followup_task  target: "lane-a"  message: <next task, or the findings to fix>
 wait_agent     timeout_ms: 600000
 list_agents
@@ -33,6 +34,9 @@ interrupt_agent target: "lane-a"
 - A lane has one reviewer `task_name` (for example `review-a`). Send each later
   task review, fix check, and PR triage to it with `followup_task`. A fresh
   reviewer is only for a plan review and the final verification.
+- Start one short-lived PR collector for the entire stack in each feedback
+  round. Give it `references/pr-collector.md` and the run paths. It reports to
+  files and does not replace the lane reviewers.
 - Record each `task_name`, model, worktree, and state in the run log.
 
 ## Waiting and stalls

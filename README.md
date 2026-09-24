@@ -14,7 +14,7 @@ links made by the install script.
 | `executing-plans` | Run an approved plan and verify each task. |
 | `session-retro` | Review a finished run and propose improvements. |
 | `working-with-ref` | Work with plans in Ref. |
-| `babysit-pr` | Watch a pull request or stack until it is ready. |
+| `babysit-pr` | Collect and address one round of PR feedback. |
 | `audit-tests` | Find weak or duplicate tests. |
 
 The `adversarial-reviewer` agent reviews a change with clean context. Its

@@ -36,6 +36,10 @@ output=$(run_case passing)
 expect_line 'all passing: CI' "$output" 'CI=PASS'
 expect_line 'all passing: required CI' "$output" 'REQUIRED_CI=PASS'
 expect_empty_list 'all passing: no failures' "$output"
+expect_line 'all passing: no unresolved threads' "$output" 'UNRESOLVED_THREADS=0'
+
+output=$(run_case threads_paginated)
+expect_line 'thread pages: all unresolved threads counted' "$output" 'UNRESOLVED_THREADS=2'
 
 output=$(run_case required_failure)
 expect_line 'required failure: CI' "$output" 'CI=FAIL'

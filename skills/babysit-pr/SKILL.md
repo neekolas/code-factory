@@ -1,134 +1,99 @@
 ---
 name: babysit-pr
-description: Use when monitoring one PR or a whole stack of PRs until it is ready — fixing CI failures, responding to review comments, resolving merge conflicts, and pushing verified fixes autonomously in a long-running loop. In an executing-plans run, the lane's reviewer reads and triages each round, the lane's implementer fixes, and the orchestrator pushes; no new agents. Works with Graphite (gt) stacks, GitHub stacked PRs (gh stack), and standalone branches.
+description: "Use when taking one feedback round on a pull request or stack: collect current-head failures and review feedback, apply verified fixes in stack order, and push once. Repeat rounds until the PRs are ready. Works with Graphite (gt), GitHub stacked PRs (gh stack), and standalone branches."
 ---
 
 # Babysit PR
 
-Monitor a PR — or an entire stack — in a loop: snapshot status, fix the highest-priority issue, verify locally, push once, sleep, repeat, until every PR is ready or you hit a give-up guard. Built for unattended operation: every iteration works from persisted state, one action at a time, with hard limits on retries.
+One round collects all feedback available across the stack, applies verified
+fixes, pushes at most once, and checks the new state. Start a round as soon as
+one fresh review item or current-head check failure appears. Check every PR in
+the stack before reporting the round. Do not wait for other checks to finish.
+Feedback that arrives later enters the next round. In an
+`executing-plans` run, that skill assigns the collector, reviewers,
+implementers, and push owner. This skill defines the work in a round, not the
+agents or wait schedule.
 
-## Hard rules (read first)
+## Hard rules
 
-- **New commits only.** Never `--amend`, never force-push history you didn't create, in an unattended loop. (Exception: Graphite's `gt modify --commit` and restacks are the stack-native equivalent and are allowed on Graphite stacks.)
-- **Never `git add -A` / `git add .`** — stage the files you changed, by name.
-- **Never merge the PR**, never `--no-verify`, never disable or skip a failing test to get to green.
-- **Only act on checks for the HEAD commit** (`HEAD_SHA` from the snapshot). Stale failures from superseded commits are noise — treat them as PENDING.
-- **Every reply starts with "🤖 "** so humans can tell it's the babysitter.
-- **Resolve only threads whose issue you actually fixed.** Scope changes and disagreements stay open for the human.
-- **Fix bottom-up in stacks.** A fix in a lower branch may cure higher branches after restacking; fixing high first gets overwritten.
-- **One push per iteration.** Apply all fixes across the stack locally, then push the whole stack once.
+- Do not merge the PR, use `--no-verify`, or disable a failing test to get a
+  green check.
+- Stage changed files by name. Do not use `git add -A` or `git add .`.
+- Use new commits. Do not amend or force-push history you did not create.
+  Graphite's `gt modify --commit` and restacks are allowed for its stacks.
+- Read check results only for the PR's current head commit. A failure on an
+  older head is stale. A pending check on the new head is not a pass.
+- Start each PR reply with `🤖 `. Resolve a thread only after its issue is
+  fixed. Leave questions, disagreements, and owner decisions open.
+- Apply fixes from the bottom of a stack upward. Restack after a lower branch
+  changes, then check higher branches again.
+- Make at most one push for the stack in a round. Apply all verified fixes
+  locally before that push. A round with no code change has no push.
 
-## Inside an orchestrated run
+## Backend
 
-When the PR belongs to a lane of an `executing-plans` run, the lane's sessions
-do the work. Start no other agent: no per-check or per-comment subagents, and
-no separate fixer. The lane's reviewer does the read side of each round; the
-orchestrator does the write side. Each session keeps exactly one driver.
-
-- **The orchestrator waits and triggers.** It waits cheaply (a background
-  watch on the checks, or a notification) and sends the lane's reviewer
-  "Babysit round: PR <N>, head <commit>" with the PR triage prompt in
-  `executing-plans/references/review-prompt.md`.
-- **The lane's reviewer reads and judges.** It runs steps 1, 3 and 4 below as
-  reads: snapshot, failure logs, every new comment, an adversarial verdict for
-  each item. It posts the "🤖 not a defect" and "🤖 flagged for the PR
-  author" replies itself. It never edits tracked files, commits, pushes, or
-  resolves threads. It returns the defects (each with the test that must fail
-  first), the base-branch or environment failures, and the owner items.
-- **The lane's implementer fixes** the defects as its next turn, and the
-  reviewer checks only those fixes.
-- **The orchestrator proves and pushes.** It resolves conflicts, restacks
-  (PRs above can belong to other lanes), runs the targeted checks, pushes the
-  stack once, posts "🤖 Fixed in <commit>", and resolves those threads.
-
-Outside a run, when no lane sessions exist, use the steps below as written.
-
-## Backend detection (once, at session start)
+Detect the backend once. Read `references/graphite.md` or
+`references/gh-stack.md` before using its commands. A standalone PR uses
+plain `git` and `gh`.
 
 ```
-if [ -f .git/.graphite_repo_config ] || gt ls >/dev/null 2>&1        → GRAPHITE
-elif gh stack view --json >/dev/null 2>&1                            → GH-STACK
-else                                                                 → STANDALONE
+if [ -f .git/.graphite_repo_config ] || gt ls >/dev/null 2>&1  → GRAPHITE
+elif gh stack view --json >/dev/null 2>&1                      → GH-STACK
+else                                                           → STANDALONE
 ```
-
-Read the matching reference before using backend commands: `references/graphite.md` or `references/gh-stack.md`. Standalone needs no reference — plain `git` + `gh`. The four verbs that differ:
 
 | Verb | Graphite | gh-stack | Standalone |
-|---|---|---|---|
-| list stack (bottom→top) | `gt ls` | `gh stack view --json` | current branch only |
-| switch to branch | `gt checkout <br>` | `gh stack checkout <br>` | `git checkout <br>` |
-| commit a fix | `gt modify --commit -m "..."` | `git add <files> && git commit` | `git add <files> && git commit` |
-| propagate + push all | `gt restack && gt submit --stack` | `gh stack rebase --upstack && gh stack submit --auto` | `git push` |
+| --- | --- | --- | --- |
+| List bottom to top | `gt ls` | `gh stack view --json` | Current branch |
+| Switch branch | `gt checkout <br>` | `gh stack checkout <br>` | `git checkout <br>` |
+| Commit fix | `gt modify --commit -m "..."` | `git add <files> && git commit` | `git add <files> && git commit` |
+| Restack and push | `gt restack && gt submit --stack` | `gh stack rebase --upstack && gh stack submit --auto` | `git push` |
 
-## State file (cold-turn memory)
+## One feedback round
 
-Persist `.git/babysit-pr-state.json` (inside `.git/` so it can never be committed) and update it **every iteration** — a wakeup has no memory of the last one:
+1. **Snapshot every PR.** List the whole stack from bottom to top. For each
+   branch with a PR, record its current head SHA, merge state, required and
+   optional checks, and review state. Skip branches without PRs. Stop with an
+   error if there is no PR. Use the repository's PR status command, or
+   `scripts/check-pr.sh <pr> <repo-dir>` as a fallback. A missing check result
+   is not a pass.
+2. **Collect all current feedback across the stack before reporting.** Get
+   logs and annotations for every check that has failed so far on each current
+   head. Record checks still running as pending. Fetch all pages of unresolved
+   review threads, review bodies, and conversation comments. Keep each item's
+   ID, PR, head SHA, link, and evidence. Ignore resolved threads and comments
+   already answered by a `🤖 ` reply. Do not treat a stale check as a current
+   failure.
+   Use repository commands first; use `gh` when they do not cover a source.
+3. **Triage every item.** Reproduce or verify a reported defect before fixing
+   it. Find the root cause of a failed check; mark a base-branch or environment
+   failure separately. For a question or false report, give a concrete answer
+   with evidence and leave the thread open. Flag a scope, style, or design
+   decision for the PR author and leave it open. Do not silently implement an
+   architectural suggestion. Keep the verdict for each item ID so the next
+   round does not repeat a reply.
+4. **Fix in order.** Resolve the lowest merge conflict first. Then apply all
+   verified code fixes from bottom to top. After each lower-branch change,
+   restack and check higher branches again. Run targeted local checks, commit
+   the fixes, and push the affected stack once. A fix on the base branch
+   needs a rebase and a new push; rerunning the old PR checks cannot test it.
+   Required checks gate readiness. Investigate optional failures and report
+   any that remain.
+5. **Close the round.** After the push, reply `🤖 Fixed in <commit>` on fixed
+   threads and resolve them. Answer or flag other reviewed items with their
+   evidence, without resolving owner decisions. Snapshot the new heads. All
+   required checks must pass on those heads before the PRs can be ready.
 
-```json
-{ "iterations": 3, "lastHeadShas": {"<branch>": "<sha>"},
-  "fixAttempts": {"<branch>:<check-name>": 2}, "handledComments": ["<id>", "..."] }
-```
-
-## Repository tools first
-
-Check the repository's `AGENTS.md`, `CLAUDE.md`, skills, and task runner
-(`justfile`, `Makefile`, or `package.json` scripts). Use its commands for PR or
-CI status, failed-job logs, annotations, scoped lint and tests, and stack
-operations when they exist. Use this skill's `scripts/check-pr.sh` and plain
-`gh` commands only as fallbacks. For example, use `just ci-status <pr>` and
-`just ci-failures <job>` when the repository provides them.
-
-## Session loop
-
-Each iteration does **exactly one** of the following, chosen by the first match top-down, then updates the state file, prints what it did and the chosen sleep, and sleeps.
-
-1. **Snapshot.** For each branch in the stack (bottom→top) with a PR, use the repository's PR status command, or `scripts/check-pr.sh <pr> <repo-dir>` if none exists. Get the HEAD, merge, and CI facts for the guards below. With 3+ PRs, fan the snapshots out to parallel subagents. Skip branches without PRs. No PRs anywhere → exit with an error.
-2. **Merge conflicts first** (`MERGEABLE=CONFLICTING` anywhere): resolve on the **lowest** conflicted branch — conflicts block CI from meaning anything. Rebase per backend (see reference); resolve markers, verify, commit, propagate up, push once.
-3. **CI failures** (`CI=FAIL` on the HEAD commit, lowest affected branch first):
-   - **Stale-CI guard:** if the failing run's SHA ≠ current `HEAD_SHA`, treat as PENDING — never dispatch a second fixer for a superseded run.
-   - **Give-up guard:** if `fixAttempts[branch:check] ≥ 2` on fresh SHAs, stop fixing that check — report it as needing a human and exclude it from further iterations.
-   - Otherwise (in an orchestrated run, see above: the lane's reviewer diagnoses and the lane's implementer fixes): dispatch one subagent per failing check to fetch logs with the repository's failure-log command, or `gh run view <run-id> --log-failed` if none exists, and diagnose. CI logs are verbose; isolating them keeps this context clean. Fix at the root cause, run **targeted** local verification with repository commands for scoped lint and tests, commit, increment `fixAttempts`, propagate, push once. Required checks gate readiness; optional-check failures are best-effort.
-4. **Review feedback** (unresolved threads, review bodies, conversation comments — fetch all three buckets; reviewers put their most important feedback in top-level review bodies, not inline). Skip anything resolved, authored by the babysitter (🤖), or in `handledComments`. Triage each remaining item (in an orchestrated run, the lane's reviewer gives the verdict and the lane's implementer makes the fix):
-
-   | Type | Action |
-   |---|---|
-   | Real defect | Fix, verify, commit. Reply "🤖 Fixed — <what changed>", resolve thread. |
-   | Question / misunderstanding / non-issue | Reply "🤖 <concrete answer citing code>". Leave open. **No code changes.** |
-   | Scope change, style preference, architectural ask | Reply "🤖 Flagged for the PR author — outside this babysitter's mandate." Leave open, record for the final report. |
-
-   Subjective or architectural feedback is **never** silently implemented — judge the code, not the confidence of the comment (bots included: CodeRabbit, Copilot, Greptile, Bugbot are frequently out of scope).
-5. **All quiet** → check the exit condition; if not met, sleep on the long interval.
-
-**Iteration cap:** stop after 12 iterations regardless (≈ a couple of hours) and report where things stand — an unattended loop that can't converge in 12 rounds needs a human.
-
-## Sleep intervals
-
-| Situation | Sleep |
-|---|---|
-| Just pushed; CI hasn't picked up the new SHA | 2 min |
-| CI running, started < 15 min ago | 3–5 min |
-| CI running, long-running suite | 5 min |
-| All green, waiting on human reviewers | 10 min |
-| No actionable items, PR not fully ready | 5 min |
-
-Across a stack, use the shortest applicable interval. Print `Sleeping {N} min — {reason}` first. In a plain shell loop use `sleep <seconds>`; in Claude Code prefer scheduled wakeups (`/loop` or ScheduleWakeup) over a blocked foreground sleep — same cadence, cheaper.
+Repeat the round when a new push, failed check, or review item changes the
+state. If required checks finish without findings, check the exit condition.
+Stop and report with evidence when the same failure does not improve after
+repeated verified fixes, a check stalls, or an owner decision is needed. Do
+not keep making equivalent pushes.
 
 ## Exit condition
 
-Every PR in the stack: all **required** checks passing on HEAD, every review thread resolved-or-answered (🤖 reply is the last word), every review body and conversation comment addressed. Optional-check failures don't block — note them and declare ready. Print: **"All required checks passing and all review comments addressed across the stack. PRs are ready."** Then report anything parked by give-up guards or flagged as needing the author.
-
-## Common mistakes
-
-| Mistake | Fix |
-|---|---|
-| Fixing a check that failed on a superseded commit | Stale-CI guard: compare run SHA to `HEAD_SHA` first |
-| Re-fixing the same check forever | Give-up guard: 2 strikes per check on fresh SHAs, then escalate |
-| Replying twice to the same comment | Check `handledComments` and whether the last reply is 🤖 |
-| Pushing per-branch during a stack pass | Fix everything locally bottom-up, push once |
-| Missing top-level review bodies | Fetch all three comment buckets, not just inline threads |
-| Forgetting to propagate after a mid-stack fix | Restack/rebase-upstack before touching the next branch; then re-check higher PRs — the restack itself can break them |
-| Implementing a reviewer's architectural suggestion | That's the author's call — reply, flag, leave open |
-| Trusting this session's memory of previous iterations | The state file is the memory; read it, update it, every iteration |
-| Fetching CI logs into the main context | One subagent per failing check; keep this context for decisions. In an orchestrated run, the lane's reviewer reads them |
-| Starting a new fixer agent for each round in an orchestrated run | The lane's reviewer reads and judges; the lane's implementer fixes; both already know the code |
-| Letting the reviewer push, resolve, or resume the implementer | Only the orchestrator moves sessions and branches; one driver per session |
+Every PR must have no merge conflict, all required checks passing on its
+current head, all feedback addressed, and all required approvals. A reply to
+an owner decision records it but does not supply the owner's approval. If a
+human review or an external check is still pending, report that state; do not
+call the PR ready. Do not merge the PR.

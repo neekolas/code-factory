@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Use when running an approved plan, or any change of several tasks, as an orchestrator - prepares a verified context brief, runs one long-lived implementer and one long-lived reviewer per lane (the reviewer reviews each task and triages PR comments and CI failures; the implementer fixes them), PRs that may span tasks, CI follow-up by the orchestrator, and recovery from dead or stalled agent sessions. Has a Claude Code variant and a Codex variant. Replaces code-factory:execute-dynamic-workflow
+description: Use when running an approved plan, or any change of several tasks, as an orchestrator - prepares a verified context brief, keeps one implementer and one reviewer per lane, collects PR feedback with a cheap read-only agent, routes verified fixes, and recovers stalled sessions. Has a Claude Code variant and a Codex variant. Replaces code-factory:execute-dynamic-workflow
 ---
 
 # Executing plans
@@ -124,14 +124,17 @@ it), stop it, fix the brief, and start again.
 - **Reviewer sessions:** one per lane. Start it at the lane's first review, and
   keep it for every later task and PR of that lane. It reviews each task
   commit, checks the fixes for its own findings, and triages the lane's PR
-  review comments and CI failures (section 5). It never writes code, so it
-  stays independent of the implementer. The final verification (section 8)
-  uses a fresh reviewer.
+  review comments and CI failures from the collector's report (section 5).
+  It never writes code or changes PR state, so it stays independent of the
+  implementer. The final verification (section 8) uses a fresh reviewer.
 - **Chore sessions** run long procedural work: preflight and full verification
-  runs. They report short results, so their output stays out of your context.
+  runs. A short-lived, read-only chore collects PR feedback for one stack
+  round. Chores report short results, so noisy output stays out of your
+  context.
 - **No extra fixers.** A lane's review findings, PR comments, and CI failures
-  go to that lane's reviewer and implementer. Do not start a new agent to fix
-  or triage them. A new session is only for a dead one, with a handoff.
+  go to that lane's reviewer and implementer. The PR collector gathers facts
+  only. Do not start another agent to fix or triage findings. Replace a dead
+  lane session only with a handoff.
 - **No relays.** Start the model you want directly. An agent whose only job is
   to drive another agent doubles the tokens and adds a failure point.
 
@@ -203,36 +206,38 @@ When every task in a PR is done:
    gaps. Do not paste review reports.
 3. Start the next planned task before you end your turn. A milestone is not a
    stopping point.
-4. Follow the PR until it is ready: failed checks, review comments, merge
-   conflicts. Use `babysit-pr` when it exists. The lane's reviewer does the
-   read side of each round; you do the write side. Start no other agent.
-   - **You wait and trigger.** Wait cheaply: a background watch on the PR's
-     checks, or a platform notification. Do not poll in your own context.
-     When the head's checks finish or new comments arrive, send the lane's
-     reviewer one message: "Babysit round: PR <N>, head <commit>" with the
-     PR triage prompt from `references/review-prompt.md`.
-   - **The reviewer reads and judges.** It takes the snapshot, reads the
-     failure logs and every new comment, and verifies each item adversarially
-     against the code. It posts the "not a defect" and "flagged for the owner"
-     replies itself, because they need only its evidence. It never edits
-     tracked files, commits, pushes, or resolves threads. It returns a short
-     list: the defects to fix (each with the test that must fail first), the
-     failures that belong to the base branch or the environment, and the
-     items for the owner. The CI logs and comment bodies stay out of your
-     context.
-   - **The implementer fixes.** Send the defects to the lane's implementer as
-     its next turn. If it is in the middle of a task, the fixes go after that
-     turn ends, unless the PR blocks other work. It fixes, cleans, and
-     commits. The reviewer checks only those fixes.
-   - **You prove and push.** Only you move sessions and branches. Run the
-     brief's targeted checks on the fix commit, restack the PRs above it
-     (they can belong to other lanes), push once, then post "Fixed in
-     <commit>" on each fixed thread and resolve it. Take a base-branch
-     failure or an owner item yourself.
-   - **Ready** means every required check is green on the PR's current head
-     commit. A red or pending check is not ready, and neither is a green run
-     on an earlier commit. Do not report a PR or its tasks as ready or
-     mergeable before that.
+4. Follow each PR with the one-round procedure in `babysit-pr`. Repeat on a
+   new push or new feedback until its exit condition is met. In each round:
+   - **Wait for the first signal.** Use a background check watch or platform
+     notification. Start a round as soon as one check fails on a current head,
+     a merge conflict appears, or one fresh review item arrives. Also wake
+     when all required checks finish, to test readiness. The watch must
+     surface the first failure; do not wait for the slowest check before you
+     start work on a finding. Do not poll in your own context.
+   - **Collect.** Send one cheap, read-only chore agent across the entire
+     stack with `references/pr-collector.md`. It follows `babysit-pr` collection
+     steps and checks every PR before it reports. Pending checks do not delay
+     the report. It writes a short index plus raw evidence files. It does not
+     judge findings or change the PR. Read its short index; keep raw logs and
+     comment bodies out of your context.
+   - **Review.** Send each lane's items and the report path to its existing
+     reviewer with the PR triage prompt in `references/review-prompt.md`.
+     It verifies each item and returns a verdict with evidence. Send no items
+     to a reviewer when the collector found none for that lane.
+   - **Fix.** Send valid findings to the owning lane's implementer as its next
+     turn. If it is in a task, wait until that turn ends unless the PR blocks
+     other work. It fixes, cleans, and commits. The same reviewer checks its
+     fixes. Take cross-lane conflicts, base-branch failures, and owner items
+     yourself.
+   - **Push once.** Apply all verified fixes bottom-up. Run targeted checks,
+     restack PRs above changed branches, then push the affected stack once.
+     Post `🤖 ` replies and resolve only fixed threads after the push. If
+     there is no code change, do not push. Record handled IDs and heads in
+     the run log so later rounds do not duplicate replies.
+   - **Ready** means every required check is green on each PR's current head,
+     feedback is addressed, required approvals are present, and no merge
+     conflict remains. A green run on an earlier commit does not count. Do
+     not report a PR or its tasks as ready before that.
    - After a rebase or a force-push, CI must pass again on the new head
      before you report the PR ready.
    - A re-run of failed jobs tests the same merge commit again. It does not

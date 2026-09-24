@@ -84,8 +84,28 @@ fi
 repo=$(gh repo view --json owner,name --jq '.owner.login + " " + .name')
 owner=${repo%% *}
 name=${repo##* }
-unresolved=$(gh api graphql \
-  -f query='query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}' \
-  -f owner="$owner" -f name="$name" -F pr="$num" \
-  --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)] | length' 2>/dev/null) || unresolved="?"
+unresolved=0
+cursor=
+while :; do
+  args=(-f query='query($owner:String!,$name:String!,$pr:Int!,$cursor:String){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100,after:$cursor){nodes{isResolved} pageInfo{hasNextPage endCursor}}}}}'
+    -f owner="$owner" -f name="$name" -F pr="$num")
+  if [ -n "$cursor" ]; then
+    args+=(-f cursor="$cursor")
+  fi
+  page=$(gh api graphql "${args[@]}" 2>/dev/null) || { unresolved='?'; break; }
+  if ! jq -e '.data.repository.pullRequest.reviewThreads | .nodes != null and .pageInfo.hasNextPage != null' >/dev/null 2>&1 <<<"$page"; then
+    unresolved='?'
+    break
+  fi
+  count=$(jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)] | length' <<<"$page")
+  unresolved=$((unresolved + count))
+  if [ "$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' <<<"$page")" != true ]; then
+    break
+  fi
+  cursor=$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // empty' <<<"$page")
+  if [ -z "$cursor" ]; then
+    unresolved='?'
+    break
+  fi
+done
 echo "UNRESOLVED_THREADS=$unresolved"

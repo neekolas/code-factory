@@ -11,8 +11,8 @@ before the first dispatch. Record them where the run records its state.
 | Role | Does | Session length |
 | --- | --- | --- |
 | Implementer | Writes code and tests. Fixes build errors and review findings. | Long: one session per lane, across tasks and PRs |
-| Reviewer | Reviews a plan or a frozen diff. Runs the verifications. Triages the lane's PR comments and CI failures. Never edits. | Long: one session per lane; a fresh one for a plan review and the final verification |
-| Chore | Procedural work: preflight, long verification runs, mechanical edits. | As long as the chore |
+| Reviewer | Reviews a plan or a frozen diff. Runs the verifications. Triages collected PR comments and CI failures. Never edits. | Long: one session per lane; a fresh one for a plan review and the final verification |
+| Chore | Procedural work: preflight, long verification runs, PR feedback collection, mechanical edits. | As long as the chore |
 
 ## Defaults
 
