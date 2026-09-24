@@ -159,7 +159,8 @@ For each task, in lane order:
    the run is long. Do not run full suites locally; CI runs them. An
    implementer's claim that a failure is pre-existing counts only when the
    baseline confirms it.
-6. **Record.** Mark the task done in the run log with its final commit.
+6. **Record.** Mark the task done in the run log with its final commit. Done
+   is not ready: the task is ready only when its PR is ready (section 5).
 
 The next task in the lane goes to the same implementer session.
 
@@ -200,6 +201,15 @@ When every task in a PR is done:
    Read the failure log, and check the known failures, before you call a
    failure flaky. Send code fixes to the lane's implementer when its session
    is alive, otherwise to a new session with a handoff. Push follow-up commits.
+   - **Ready** means every required check is green on the PR's current head
+     commit. A red or pending check is not ready, and neither is a green run
+     on an earlier commit. Do not report a PR or its tasks as ready or
+     mergeable before that.
+   - After a rebase or a force-push, CI must pass again on the new head
+     before you report the PR ready.
+   - A re-run of failed jobs tests the same merge commit again. It does not
+     pick up new commits on the base branch. When the fix is on the base,
+     rebase the PR branch and push; do not re-run.
 5. A stacked PR may start before the PR below it is green.
 
 ## 6. Session health
