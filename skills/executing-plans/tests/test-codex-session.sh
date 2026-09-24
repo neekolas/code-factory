@@ -24,6 +24,15 @@ echo 1 >"$run/z.offset"; echo $(( $(date +%s) - 600 )) >"$run/z.started"; : >"$r
 check "a launcher that died before codex started is died" died "$("$S" status "$run" z)"
 check "resume keeps the session's model" m "$(FAKE_MODEL_LOG="$tmp/models" FAKE_MODE=ok "$S" resume "$run" a "$tmp/p.md" >/dev/null; tail -n 1 "$tmp/models")"
 
+# A session whose directory was removed cannot resume; it says so at once.
+mkdir "$tmp/gone"
+FAKE_MODE=ok "$S" start "$run" f "$tmp/gone" m low read "$tmp/p.md" >/dev/null
+rm -rf "$tmp/gone"
+msg=$(FAKE_MODE=ok "$S" resume "$run" f "$tmp/p.md" 2>&1); rc=$?
+check "resume in a removed directory exits 3" 3 "$rc"
+check "resume in a removed directory asks for a handoff" yes "$(grep -q 'is gone. Start a new session with a handoff' <<<"$msg" && echo yes || echo no)"
+check "a refused resume keeps the session state" "done" "$("$S" status "$run" f)"
+
 # The watcher may start before the session writes anything.
 ( sleep 1; FAKE_MODE=ok "$S" start "$run" b "$tmp" m low write "$tmp/p.md" >/dev/null ) &
 check "watch waits for a late start" "done" "$("$S" watch "$run" b 60)"

@@ -207,6 +207,10 @@ notification is not proof that a session is alive.
 - **Wait in bounded stretches** of five to ten minutes. After each stretch,
   check every live session's transcript or event log and its worktree, and
   chase any that finished without a report.
+- **Never remove a worktree that a live session uses as its working
+  directory.** Stop the session first, or keep the worktree. A Codex session
+  cannot resume after its directory is gone: `codex-session.sh resume` exits
+  3, and the lane needs a new session with a handoff.
 - **Finished** means all three: the platform says the turn ended, the
   session's final message exists, and the commit it reports is in git. Check
   git, not the summary.

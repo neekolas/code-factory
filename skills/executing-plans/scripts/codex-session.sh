@@ -8,6 +8,7 @@
 #   codex-session.sh stop   <run-dir> <name>
 #
 # start and resume block until the turn ends; run them in the background.
+# resume exits 3 when the session's directory is gone: start a new session.
 # Files per session in <run-dir>: <name>.{thread,cwd,model,sandbox,pid,offset,exit,events.jsonl,last.md,stderr}.
 # status prints one word for the latest turn only: starting, running, busy,
 # done, failed, died, stalled, or none.
@@ -129,11 +130,17 @@ case "$cmd" in
   resume)
     prompt=${1:?prompt-file}; effort=${2:-}
     alive && { echo "session $name is still running" >&2; exit 2; }
+    # resume has no --cd; it must run from the original directory.
+    cwd=$(cat "$base.cwd")
+    [ -d "$cwd" ] || {
+      echo "session $name cannot resume: its directory $cwd is gone. Start a new session with a handoff." >&2
+      exit 3
+    }
     # The .thread file is written when a turn ends; after a crash, read the log.
     thread=$(cat "$base.thread" 2>/dev/null || true)
     [ -n "$thread" ] || thread=$(jq -r 'select(.type=="thread.started") | .thread_id' "$base.events.jsonl" 2>/dev/null | head -n 1)
     [ -n "$thread" ] || { echo "no thread id for $name" >&2; exit 2; }
-    cd "$(cat "$base.cwd")"   # resume has no --cd; it must run from the original directory
+    cd "$cwd"
     # Without -m, resume falls back to the configured default model.
     extra=(); [ -s "$base.model" ] && extra=(-m "$(cat "$base.model")")
     [ -n "$effort" ] && extra+=(-c model_reasoning_effort="$effort")

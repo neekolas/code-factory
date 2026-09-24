@@ -89,6 +89,8 @@ $S stop "$RUN/sessions" lane-a
 - On `stalled`: run `stop`, then `resume` with the interruption message from
   the main skill. On `died` or `failed`: `resume` the same way. After two
   failed resumes, `start` a new name with a handoff.
+- `resume` exits 3 at once when the session's directory is gone. Do not retry:
+  `start` a new name with a handoff, in an existing worktree.
 - `resume` reuses the session's model; without it, Codex falls back to the
   configured default. To raise the effort of a live lane, pass it as the last
   argument: `$S resume "$RUN/sessions" lane-a "$RUN/prompts/fix.md" xhigh`.
