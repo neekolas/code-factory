@@ -125,8 +125,16 @@ it), stop it, fix the brief, and start again.
   keep it for every later task and PR of that lane. It reviews each task
   commit, checks the fixes for its own findings, and triages the lane's PR
   review comments and CI failures from the collector's report (section 5).
-  It never writes code or changes PR state, so it stays independent of the
-  implementer. The final verification (section 8) uses a fresh reviewer.
+  The implementer and reviewer share one lane worktree. Only one session owns
+  that worktree at a time. Its agent may use fast-tier chore subagents for
+  bounded exploration or procedural work. Do not delegate implementation,
+  fixes, or review decisions to them. The lane implementer owns all lasting
+  code and test changes. Finish or stop all child agents before the turn ends.
+  Review and fix turns can alternate; start the next turn only after the
+  previous turn and its child agents end. The reviewer may edit code and tests
+  to check a claim, then restore the starting state before reporting. Its
+  separate session gives it clean context. The final verification (section 8)
+  uses a fresh reviewer.
 - **Chore sessions** run long procedural work: preflight and full verification
   runs. A short-lived, read-only chore collects PR feedback for one stack
   round. Chores report short results, so noisy output stays out of your
@@ -152,9 +160,16 @@ For each task, in lane order:
    review, start it with `references/review-prompt.md`. Give it
    the run brief, the task brief, the requirement IDs, and the base and
    candidate commits. It runs the task's proofs itself, so it needs a sandbox
-   that can build (the same one as the implementer). Record `git status
-   --porcelain` before and after: a review must leave tracked files unchanged.
-   It returns its report to you only.
+   that can build. Before review, record `HEAD` and `git status --porcelain` in
+   the review worktree. `HEAD` must be the candidate commit and status must be
+   empty. If either check fails, resolve the mismatch before review; do not
+   include uncommitted work in a review of the commit. Keep the implementer
+   idle until review and its proofs finish. The reviewer may make temporary
+   edits for checks, but must restore its starting state.
+   Check `HEAD` and status again after review. If they differ from the start,
+   have the reviewer restore its changes before accepting the report. If the
+   checkout changed unexpectedly during a plan proof, repeat the affected
+   review and proof on the candidate commit. It returns its report to you only.
 4. **Rule.** Decide each finding: valid, or rejected with a one-line reason in
    the run log. A silent discard is not allowed. Read the code yourself only
    when the report is unclear. Send the valid CRITICAL and MAJOR findings to
@@ -184,7 +199,11 @@ Done means: the code and tests for Task <N> are written, format, compile, and
 lint are clean for the code you changed, and the work is committed on <branch>.
 Do the whole task in this turn. Do not stop at an acknowledgement or a plan.
 Do not build or run tests until the code and tests are written. Do not end your
-turn while a command you started is still running. Do not start subagents.
+turn while a command you started or a subagent you started is still running.
+You may use fast-tier chore subagents for bounded exploration or procedural
+work. Do not delegate code or test writing, or fixes to them. You own the
+task's code, tests, and decisions. Finish or stop all child agents before your
+turn ends.
 If you are blocked, stop and say what blocks you and what you tried.
 Write the full report to <RUN>/reports/<session>.md. Final message, 1,500
 characters or fewer: status (DONE | DONE_WITH_CONCERNS | BLOCKED), commits,
@@ -222,6 +241,7 @@ When every task in a PR is done:
      comment bodies out of your context.
    - **Review.** Send each lane's items and the report path to its existing
      reviewer with the PR triage prompt in `references/review-prompt.md`.
+     Wait for the implementer's turn to end before starting the reviewer turn.
      It verifies each item and returns a verdict with evidence. Send no items
      to a reviewer when the collector found none for that lane.
    - **Fix.** Send valid findings to the owning lane's implementer as its next

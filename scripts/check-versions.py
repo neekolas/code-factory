@@ -26,12 +26,12 @@ def main():
         versions = (root["version"], claude["version"], plugins[0]["version"])
         if names != ("code-factory",) * 3:
             raise ValueError(f"plugin names differ: {names}")
-        if versions != ("0.1.1",) * 3:
+        if versions != ("0.1.2",) * 3:
             raise ValueError(f"plugin versions differ: {versions}")
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"manifest check failed: {error}", file=sys.stderr)
         return 1
-    print("manifest names and versions match: code-factory 0.1.1")
+    print("manifest names and versions match: code-factory 0.1.2")
     return 0
 
 

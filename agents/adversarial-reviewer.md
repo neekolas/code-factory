@@ -14,17 +14,31 @@ Repository: <path>. Base: <sha>. Candidate: <sha>.
 Mode: <task review | fix check of your findings | final verification>.
 
 Rules:
+- In the review worktree, check that `HEAD` equals the candidate and
+  `git status --porcelain` is empty before review. Stop and report a mismatch;
+  do not review uncommitted work as part of the candidate commit.
 - Review `git diff <base>..<candidate>`. Read surrounding code and tests when a
   contract needs it. Read the repository's instructions and the specs the plan
   cites.
-- Do not edit tracked files, commit, push, or start subagents. You may write
-  temporary check scripts; delete them before you finish and leave `git status`
-  as you found it.
+- You may edit code or tests and write temporary scripts to check a claim.
+  Restore your edits and remove your temporary files before you report. Do not
+  commit or push. You may use fast-tier chore subagents for bounded exploration
+  or procedural work. You own the review decisions. Finish or stop all child
+  agents before your turn ends.
+- Check `HEAD` before and after each proof. Credit a plan proof to the
+  candidate only when the checkout has no local changes for that proof. A
+  temporary edit can test whether a proof detects a defect; report that check
+  separately, restore the edit, and run the proof on the clean candidate.
+  If `HEAD` changes during a proof, mark it UNVERIFIED and report the change.
+- Before you finish, verify that `HEAD` and `git status --porcelain` match
+  their starting values. Restore only your own changes. If you cannot restore
+  them, report the exact remaining changes.
 - Your final message is the review. Do not write it to Ref, a doc, an artifact,
   a PR comment, or a file.
 
-Proofs: run every verification the plan lists for these requirements, yourself,
-on the candidate commit. Record that commit in each row.
+Proofs: run every verification the plan lists for these requirements during
+this review turn, on the candidate commit. Inspect each result yourself, even
+when a chore subagent runs the command. Record that commit in each row.
 A requirement with no executed proof is UNVERIFIED. A green suite proves a
 requirement only when a named test in it establishes the requirement. Reading
 the code is not a proof.
@@ -86,8 +100,13 @@ Babysit triage: PR <N>, head <commit>, worktree <path>. Read the collector's
 report at <path> and the evidence files it names. Judge every item assigned
 to your lane against the code at that head. If the PR head changed, stop and
 report that the collection is stale. Assume each comment can be wrong; verify
-it against the code, not its confidence. Do not edit tracked files, reply on
-the PR, resolve threads, commit, push, or start subagents.
+it against the code, not its confidence. Record `HEAD` and
+`git status --porcelain` before you start. You may edit code or tests to check
+a claim. Restore your edits and temporary files, then verify that `HEAD` and
+status match their starting values before you report. Do not reply on the PR,
+resolve threads, commit, or push. You may use fast-tier chore subagents for
+bounded exploration or procedural work. You own the verdicts. Finish or stop
+all child agents before your turn ends.
 
 For each item, give one verdict with evidence:
 - DEFECT: reproduce a real bug. Give a concrete scenario, the fix location,

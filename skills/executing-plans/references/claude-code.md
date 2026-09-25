@@ -25,6 +25,10 @@ edit.
   entire stack. It writes the report and does not triage or fix findings.
 - Claude Code runs at most 20 subagents at once. Count Codex background shells
   separately; the machine's build capacity is the tighter limit.
+- Lane implementers and reviewers may use the run's fast-tier chore model for
+  bounded exploration or procedural work. They keep code and test edits,
+  fixes, and review decisions in the lane session. All child agents must end
+  before that lane turn ends.
 - The effort comes from the agent definition. The `Agent` tool sets only the
   model.
 - A failed Claude subagent returns its last output. Resume it with
@@ -68,8 +72,10 @@ $S resume "$RUN/sessions" lane-a "$RUN/prompts/lane-a.2.md"
 
 # A Codex reviewer, when the run uses one: one name per lane, started at the
 # lane's first review and resumed for each later task, fix check, and PR triage.
-# It builds and runs the proofs, so it uses the implementer's sandbox; check
-# `git status --porcelain` before and after.
+# It builds and runs the proofs, so it needs a build-capable sandbox. Use the
+# lane worktree after the implementer's turn ends. Check HEAD and
+# `git status --porcelain` before and after review. Resume the implementer
+# only after the reviewer restores the worktree and ends its turn.
 $S start "$RUN/sessions" review-a <worktree> gpt-6-sol xhigh write "$RUN/prompts/review-a.3.md"
 $S resume "$RUN/sessions" review-a "$RUN/prompts/review-a.pr.md"
 

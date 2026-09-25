@@ -1,7 +1,7 @@
 {
   "name": "code-factory",
   "description": "Skills for planning, implementation, review, and repository care",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": { "name": "Nicholas Molnar" },
   "repository": "https://github.com/neekolas/code-factory",
   "license": "MIT",

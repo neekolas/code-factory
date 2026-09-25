@@ -9,7 +9,11 @@
   opens Ref first spends its first calls on Ref's own guidance.
 - `~/.codex/config.toml` sets `[agents] max_threads` (12 here) for all live
   subagents and `max_depth` (2 here). Keep at most three implementers and
-  their reviewers alive at once. Tell every subagent not to start subagents.
+  their reviewers alive at once. Implementers and reviewers may start fast-tier
+  chore agents for bounded exploration or procedural work within that limit.
+  Use the run's chore model, normally `gpt-6-luna`, at an effort suited to the
+  task. Do not start child implementers or reviewers to divide the lane's
+  work. Each parent must finish or stop its children before its turn ends.
 
 ## Sessions
 
@@ -34,6 +38,10 @@ interrupt_agent target: "lane-a"
 - A lane has one reviewer `task_name` (for example `review-a`). Send each later
   task review, fix check, and PR triage to it with `followup_task`. A fresh
   reviewer is only for a plan review and the final verification.
+- Start a reviewer turn only after the implementer turn ends. Both sessions
+  use the lane worktree. Check that the prior turn's child agents have ended.
+  Resume the implementer only after the reviewer turn ends, its child agents
+  have ended, and the worktree is restored.
 - Start one short-lived PR collector for the entire stack in each feedback
   round. Give it `references/pr-collector.md` and the run paths. It reports to
   files and does not replace the lane reviewers.
