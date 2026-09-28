@@ -25,6 +25,8 @@ agents or wait schedule.
   older head is stale. A pending check on the new head is not a pass.
 - Start each PR reply with `🤖 `. Resolve a thread only after its issue is
   fixed. Leave questions, disagreements, and owner decisions open.
+- Find a thread only by its ID. Never select threads to reply to or resolve by
+  matching words in their text.
 - Apply fixes from the bottom of a stack upward. Restack after a lower branch
   changes, then check higher branches again.
 - Make at most one push for the stack in a round. Apply all verified fixes
@@ -61,10 +63,16 @@ else                                                           → STANDALONE
    logs and annotations for every check that has failed so far on each current
    head. Record checks still running as pending. Fetch all pages of unresolved
    review threads, review bodies, and conversation comments. Keep each item's
-   ID, PR, head SHA, link, and evidence. Ignore resolved threads and comments
-   already answered by a `🤖 ` reply. Do not treat a stale check as a current
-   failure.
-   Use repository commands first; use `gh` when they do not cover a source.
+   ID, PR, head SHA, link, and evidence. Ignore resolved threads. A thread is
+   handled only when its last comment is a `🤖 ` reply. A later comment from
+   anyone, a bot included, reopens it. Never mark a thread handled by its ID.
+   Do not treat a stale check as a current failure.
+   Use repository commands first. When they do not collect review feedback,
+   run `scripts/collect-feedback.py --out <dir> <owner/repo> <pr>...` for the
+   whole stack; do not write GraphQL queries. It reads every page, applies the
+   last-comment rule, and reads review bodies and the output of failing and
+   neutral check runs on the current head. Exit 2 and `INCOMPLETE` mean the
+   collection failed, not that there are no items.
 3. **Triage every item.** Reproduce or verify a reported defect before fixing
    it. Find the root cause of a failed check; mark a base-branch or environment
    failure separately. For a question or false report, give a concrete answer
@@ -81,7 +89,13 @@ else                                                           → STANDALONE
    any that remain.
 5. **Close the round.** After the push, reply `🤖 Fixed in <commit>` on fixed
    threads and resolve them. Answer or flag other reviewed items with their
-   evidence, without resolving owner decisions. Snapshot the new heads. All
+   evidence, without resolving owner decisions. Post the replies with
+   `scripts/post-replies.py <owner/repo> <pr> <file>`: one
+   `<thread id>|reply|<body>` or `<thread id>|reply+resolve|<body>` line for
+   each thread. Write a commit as `<sha:commit subject>`, or give
+   `--git-dir <clone>` to map a local commit ID to the pushed commit with the
+   same subject. Read the dry run, then run it again with `--post`. Snapshot
+   the new heads. All
    required checks must pass on those heads before the PRs can be ready.
 
 Repeat the round when a new push, failed check, or review item changes the

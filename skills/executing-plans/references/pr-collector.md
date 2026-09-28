@@ -19,10 +19,12 @@ files beside the index; link each file from it.
 Before you report, inspect every PR in the stack. For each PR, record its
 current head SHA, merge state, required and optional check states, and review
 state. Mark running checks PENDING. Fetch the logs and annotations for every
-check that has failed so far on that head. Fetch every page of review bodies,
-conversation comments, unresolved threads, and replies. Record stable IDs,
-links, authors, and the last reply for each item. Do not treat an earlier
-head's check as current.
+check that has failed so far on that head. Collect review feedback with
+<babysit-pr>/scripts/collect-feedback.py --out <RUN>/reports/pr-round-<N>
+<owner/repo> <PR list>. It reads every page of unresolved threads, review
+bodies, conversation comments, and failing or neutral check-run output, and
+writes one JSON file for each PR. Do not write GraphQL queries. Do not treat
+an earlier head's check as current.
 Do not return a report after finding one failure or comment. Finish the
 snapshot and feedback collection for every PR first.
 Use the repository's commands first; use gh where they lack a source. If a
@@ -39,5 +41,6 @@ page limit as INCOMPLETE, not as zero findings.
 ```
 
 The index groups items by PR and head. Each item has an ID, source type,
-link, and evidence file. It marks already handled items using the run log and
-the last `🤖 ` reply. It does not omit a later human reply on that thread.
+link, and evidence file. A thread is handled only when its last comment is a
+`🤖 ` reply. A thread ID in the run log does not mark it handled. The index
+does not omit a later reply from anyone, including a review bot.

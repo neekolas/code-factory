@@ -306,9 +306,10 @@ When every task in a PR is done:
      failures, and owner items yourself.
    - **Push once.** Apply all verified fixes bottom-up. Run targeted checks,
      restack PRs above changed branches, then push the affected stack once.
-     Post `🤖 ` replies and resolve only fixed threads after the push. If
-     there is no code change, do not push. Record handled IDs and heads in
-     the run log so later rounds do not duplicate replies.
+     Post `🤖 ` replies and resolve only fixed threads after the push, with
+     `babysit-pr`'s `scripts/post-replies.py`. If there is no code change, do
+     not push. Record the heads in the run log. A thread ID in the log does
+     not mark the thread handled: its last comment does.
    - **Ready** means every required check is green on each PR's current head,
      feedback is addressed, required approvals are present, and no merge
      conflict remains. A green run on an earlier commit does not count. Do

@@ -176,4 +176,5 @@ End with the head commit you reviewed.
 The orchestrator sends DEFECT items to the lane's implementer. It posts the
 evidence for NOT A DEFECT and OWNER items with a `🤖 ` prefix and leaves those
 threads open. After a fix is pushed, it posts `🤖 Fixed in <commit>` and
-resolves only the fixed threads.
+resolves only the fixed threads. It posts with `babysit-pr`'s
+`scripts/post-replies.py`, which finds each thread by its ID.

@@ -92,6 +92,7 @@ Run these commands from the repository root:
 
 ```sh
 skills/babysit-pr/tests/test-check-pr.sh
+python3 skills/babysit-pr/tests/test_feedback_scripts.py
 skills/executing-plans/tests/test-codex-session.sh
 python3 skills/session-retro/tests/test_retro_mine.py
 for skill in skills/*; do npx --yes skills-ref@0.1.5 validate "$skill"; done

@@ -27,6 +27,8 @@ jobs:
           shellcheck -S warning skills/babysit-pr/tests/bin/gh
       - name: Test PR check snapshot
         run: skills/babysit-pr/tests/test-check-pr.sh
+      - name: Test PR feedback scripts
+        run: python3 skills/babysit-pr/tests/test_feedback_scripts.py
       - name: Test Codex session script
         run: skills/executing-plans/tests/test-codex-session.sh
       - name: Test retro scripts
