@@ -72,6 +72,9 @@ commands, and meeting environment problems. Pay that cost once.
   must cite this baseline.
 - Collect known failures: the repository's notes and your memory of flaky
   tests and environment traps.
+- Start the run helpers now, not after the first failure: a disk guard that
+  runs the repository's prune command and reports low free space, and any CI
+  waiter. Record each helper and its start command in the run log.
 
 **Brief** (`$RUN/brief.md`, shared by every session in the run):
 
@@ -298,7 +301,16 @@ When every task in a PR is done:
      in `references/review-prompt.md`.
      Wait for the implementer's turn to end before starting the reviewer turn.
      It verifies each item and returns a verdict with evidence. Send no items
-     to a reviewer when the collector found none for that lane.
+     to a reviewer when the collector found none for that lane. Send each
+     round's triage to that lane reviewer. Do not start a new triage session
+     for each round.
+   - **Rule.** Before you rule on a triage item, read the MUST and MUST NOT
+     rows of every requirement ID it names. A ruling must not contradict one.
+     Before a reply says that a waiver covers something, find that exact ID in
+     the repository's waiver file on that PR's head, and quote it. Write each
+     owner decision into the owning spec's Known limitations, or the
+     repository's equivalent, in the same turn. Review bots read the
+     repository, not the run log or Ref.
    - **Fix.** Send valid findings to the owning lane's implementer as its next
      turn. If it is in a task, wait until that turn ends unless the PR blocks
      other work. It fixes, cleans, and commits. The active reviewer checks its
@@ -351,7 +363,19 @@ notification is not proof that a session is alive.
   times that long.
 - **Usage limits.** When a model hits a session or usage limit, switch to the
   next model in its tier (`model-choice`) at once. Do not wait for the limit
-  to reset.
+  to reset. After the limit resets, move each role back to its planned model.
+  Resume the lane's earlier reviewer session on that model, within the
+  section 3 boundaries; do not start a new one.
+- **Run helpers.** After a restart or a disk-full error, start again every
+  helper that the run log lists (disk guard, CI waiter) before other work.
+- **Waiters.** Every background waiter has a total timeout, and every `gh`
+  call in it runs under `timeout 60`. Before you start a new waiter, stop the
+  old one.
+- **Transient errors.** When a tool call fails with a transient error (a
+  classifier with no verdict, a rate limit, an HTTP 5xx), do not end your
+  turn. Wait for the backoff time with a background wait that wakes you (in
+  Claude Code, a background `sleep`). At your own usage limit, do the same
+  until the reset time.
 - **Recover** in this order:
   1. Stop what is left of the session. Resume the same session with:
      "Your session was interrupted. Run `git status` and `git log -3`, re-read
@@ -373,6 +397,9 @@ notification is not proof that a session is alive.
   with a recorded ruling.
 - A fix that needs files outside the lane or changes a shared contract: take
   the task yourself.
+- Before you design a fix, read again the memory notes whose names match the
+  problem (for example, `gh-stack-*` notes before a CI base fix). Notes
+  written after your session started are not in your context.
 - Make rulings instead of stopping. Stop and ask the user only for: an
   irreversible or destructive operation, a security decision, a side effect
   outside the worktree, or a plan too broken to follow. A requirement that
