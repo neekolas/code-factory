@@ -17,7 +17,8 @@ Rules:
   comment does not start with the marker (default "🤖"). A later comment from
   anyone, a review bot included, reopens a thread that we answered. Thread IDs
   from earlier rounds never mark a thread as handled.
-- Review bodies: every non-empty review body on the current head commit.
+- Review bodies: every review body on the current head commit that has text
+  outside HTML comments.
 - Conversation comments: every comment created after the head commit, except
   comments that start with the marker.
 - Check runs: every check run on the current head whose conclusion is not
@@ -33,6 +34,7 @@ Exit status: 0 when every PR is complete, 2 when any PR is INCOMPLETE,
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -164,6 +166,11 @@ def check_runs(repo, sha):
         page += 1
 
 
+def visible(body):
+    """True when the body has text outside HTML comments."""
+    return bool(re.sub(r"<!--.*?-->", "", body, flags=re.S).strip())
+
+
 def login(item):
     return (item.get("author") or {}).get("login") or "ghost"
 
@@ -200,7 +207,7 @@ def collect(repo, number, marker):
         {"id": r["id"], "author": login(r), "state": r["state"], "at": r["submittedAt"],
          "url": r["url"], "body": r["body"]}
         for r in pages(REVIEWS, "reviews", owner, name, number)
-        if (r.get("commit") or {}).get("oid") == head and r["body"].strip()
+        if (r.get("commit") or {}).get("oid") == head and visible(r["body"])
         and not r["body"].lstrip().startswith(marker)
     ]
     conversation = [

@@ -100,6 +100,8 @@ REVIEWS = {"match": ["reviews(first:100"], "stdout": pr_data("reviews", [
      "body": "Please fix the lock.", "commit": {"oid": HEAD_SHA}},
     {"id": "R-empty", "url": "u3", "author": {"login": "x"}, "state": "COMMENTED", "submittedAt": "t",
      "body": "", "commit": {"oid": HEAD_SHA}},
+    {"id": "R-marker", "url": "u4", "author": {"login": "bot"}, "state": "APPROVED", "submittedAt": "t",
+     "body": "<!-- review marker -->\n<!-- meta: {} -->", "commit": {"oid": HEAD_SHA}},
 ])}
 COMMENTS = {"match": ["comments(first:100"], "stdout": pr_data("comments", [
     comment("IC-before", "bot", "Before the push", at="2026-09-28T08:00:00Z"),
