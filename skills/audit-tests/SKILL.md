@@ -1,11 +1,13 @@
 ---
 name: audit-tests
-description: Audit repository test suites for low-value, brittle, duplicative, or AI-generated tests. Use when an agent needs to review tests across a single project or monorepo, identify tests to delete or merge, upgrade weak tests, consolidate repeated setup into helpers, or produce a precise test quality cleanup plan.
+description: Judge whether tests detect real regressions. Use for focused test review, new test design, or a scoped audit of weak, brittle, or duplicate tests. Preserve independent contracts and report evidence before cleanup.
 ---
 
 # Audit Tests
 
-Review all tests in a repository and identify tests that should be kept, deleted, merged, upgraded, or refactored to use shared helpers.
+Review the requested test area. Identify tests to keep, delete, merge, or
+improve. A code review uses the quality checks below for changed tests and
+the coverage they claim; it does not start a repository-wide audit.
 
 This skill is language-agnostic. Adapt test discovery, module boundaries, and verification commands to the repository's existing conventions.
 
@@ -14,6 +16,50 @@ This skill is language-agnostic. Adapt test discovery, module boundaries, and ve
 Prefer tests that protect real behavior. Remove or change tests that mainly protect implementation shape, generated text, incidental structure, or current coding choices.
 
 A low-quality test is unlikely to catch a real bug but likely to break during valid changes.
+
+## Test value checks
+
+Before writing or judging a test, establish:
+
+- The observable result or independent contract it protects.
+- A plausible defect that makes the assertion fail.
+- The extra risk it covers beyond existing tests. A second layer can add
+  value when it exercises transport, serialization, or lifecycle behavior
+  that the first layer cannot reach.
+- Whether production code supplies the result. A mock, fixture, or copy of
+  the implementation must not supply the behavior the test claims to prove.
+
+A vacuous test passes even when the claimed behavior is broken. New or
+changed vacuous tests are review findings and must be fixed or removed.
+Adding them causes avoidable review cycles.
+
+Check the complete test and the production path it enters. Follow setup,
+calls, and assertions to the result. For a failure case, check that it reaches
+the intended guard and fails for the intended reason. For a bug regression,
+run it against the broken behavior, then the fix. For other new tests, use a
+small, plausible temporary defect when needed to establish detection. Follow
+stricter repository rules. Restore edits before running the final proof.
+If a check cannot run, say what remains unverified.
+
+One-off verification is a valid alternative when a permanent test would only
+check incidental text or a one-time migration. Use a temporary script,
+command, or manual check. Record the command or steps, input, commit, expected
+result, and observed result so another person can repeat it. Do not check in
+the helper only to fill a proof row. Retain regression tests for recurring
+behavior when they add useful protection, and follow repository requirements.
+
+## Preserve independent contracts
+
+Source inspection, snapshots, ordering checks, and static checks are not
+automatically weak. Keep them when they independently protect a public API,
+wire format, generated binding, security rule, release artifact, or another
+required contract. An intentional contract change may correctly break a test.
+Speed and deletion count do not decide test value.
+
+Do not add a public export, flag, or wrapper only to make a test possible when
+the real entry point can test the same risk. Before removing an existing test
+or support seam, inspect its callers, history, and the proof that will remain.
+A failing retained test can expose a product bug; investigate before deleting.
 
 ## Workflow
 
@@ -31,7 +77,7 @@ A low-quality test is unlikely to catch a real bug but likely to break during va
    - If the repository is small, use one worker for all tests.
    - If subagent launch fails because of tool-schema incompatibility, missing tools, or platform limits, stop retrying the same worker type and continue the audit in the parent agent module-by-module.
 
-3. Build a test inventory.
+3. Build a test inventory within the agreed scope.
    - Include test file, test name, behavior under test, inputs and states, assertions, setup, mocks/helpers, and related production code.
    - Note duplicate or overlapping behavior across files and modules.
    - Distinguish unit, integration, end-to-end, contract, snapshot, policy, smoke, and regression tests when the distinction matters.
@@ -93,7 +139,8 @@ Return a structured report with:
   - recommended action: keep, delete, merge, upgrade, helperize, or investigate
   - concise rationale
 - Repeated setup patterns that should become helpers
-- Any tests that look AI-generated, implementation-coupled, or policy-style
+- Suspect tests with evidence of a weak assertion or duplicate coverage;
+  do not infer quality from whether an AI wrote them
 ```
 
 ## Grading Rubric
@@ -132,6 +179,16 @@ Treat these as deletion or upgrade candidates unless there is a strong repo-spec
 - Tests that require frequent updates during valid product or implementation changes.
 - Tests that pass because they reimplement the same logic as production code.
 - Tests with broad "does not throw" assertions and no meaningful state or output validation.
+- Expected values computed with the function being tested, or self-comparisons.
+- Fixtures that pre-fill the state, receipt, or event the production path
+  should create; assertions against a store that path never writes.
+- Negative tests that fail at a different guard before reaching the claimed
+  rejection, or inputs that omit a state named by the test.
+- A local implementation used as proof for a separate generated or foreign
+  language path that the test never calls.
+
+These are prompts to inspect, not automatic deletion rules. Apply the
+independent contract checks above before deciding.
 
 ## High-Value Test Patterns
 
@@ -145,6 +202,13 @@ Prefer keeping or strengthening tests that:
 - Encode an explicit repo policy that is not reliably enforced elsewhere.
 
 ## Cleanup Plan Format
+
+For each proposed deletion or merge, give the exact test, the defect it can
+detect, the remaining proof (or why none is needed), relevant history, and
+non-test callers of any support code to remove. Name the risk and focused
+validation command. Missing evidence means `investigate`, not `delete`.
+Remove unused test-only support code in the same scoped cleanup when its
+callers and purpose have been checked.
 
 Present recommendations grouped by action:
 
@@ -183,3 +247,9 @@ After approved edits:
 - Run broader package or repo checks when deletion or merge affects shared behavior.
 - Report any commands that could not be run.
 - Summarize removed tests, preserved coverage, and remaining risks.
+
+## Source
+
+The test value and retention guidance draws on
+[OpenClaw's test-audit skill](https://github.com/openclaw/openclaw/blob/main/.agents/skills/test-audit/SKILL.md).
+Use this skill's repository-neutral commands and scope.

@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Use when running an approved plan, or any change of several tasks, as an orchestrator - prepares a verified context brief, keeps one implementer and one reviewer per lane, collects PR feedback with a cheap read-only agent, routes verified fixes, and recovers stalled sessions. Has a Claude Code variant and a Codex variant. Replaces code-factory:execute-dynamic-workflow
+description: Use when running an approved plan, or any change of several tasks, as an orchestrator - prepares a verified context brief, keeps implementers per lane and bounded reviewer sessions per PR, collects PR feedback with a cheap read-only agent, routes verified fixes, and recovers stalled sessions. Has a Claude Code variant and a Codex variant. Replaces code-factory:execute-dynamic-workflow
 ---
 
 # Executing plans
@@ -26,8 +26,10 @@ it as `${CLAUDE_SKILL_DIR}`; Codex and OpenCode show it in their skill list.
 
 1. Read the plan and the repository instructions on the path to the code. If
    the plan has no requirements with proofs, stop and use `writing-plans`. If
-   the plan is in Ref, read it once and write it to `$RUN/plan.md`; work from
-   that file.
+   the plan or design is in Ref, read it directly with the Plans tools. Use
+   `working-with-ref` for section reads and agent access. Pass Ref IDs and
+   section references, not exported copies. For repository documents, pass
+   their existing paths.
 2. Scan the plan once for conflicts: tasks that touch the same files or
    interfaces, contradictions, and gaps. Decide each one and record it in the
    run log as `Ruling: <what> - <why> - <cost if wrong>`. A clean scan needs no
@@ -41,7 +43,6 @@ it as `${CLAUDE_SKILL_DIR}`; Codex and OpenCode show it in their skill list.
    ```text
    ~/.agents/runs/<YYYY-MM-DD>-<repo>-<plan slug>-<first 8 of your session ID>/
      log.md      run log: start time, session ID, plan, base, models, lanes, events
-     plan.md     local copy of the plan
      brief.md    the run brief (section 2)
      tasks/      one task brief per task: <N>.md
      reports/    implementer and chore reports: <session>.md
@@ -80,19 +81,42 @@ commands, and meeting environment problems. Pay that cost once.
   its wrapper, for format, compile, lint, targeted tests, and services, with
   ports and URLs.
 - The baseline results and known failures.
+- The approved plan and design Ref IDs or repository paths. Include task and
+  section references, the read time, and revision metadata when available.
 - The report contract for implementers and chores: the full report goes to
   `$RUN/reports/<session>.md`; the final message is 1,500 characters or fewer.
   Reviewers are exempt: a review exists only as the reviewer's final message.
 
-**Task brief** (`$RUN/tasks/<N>.md`, one per task). Copy the task from the
-plan with what it needs, so the subagent reads this file and the run brief,
-not the whole plan:
+**Lane context.** Each implementer reads the full approved plan and design
+once when its session starts, directly from Ref when hosted there. Include
+dependencies and work assigned to other lanes. Full context does not grant
+permission to edit another lane's files. A replacement implementer reads the same full context before its
+handoff. The plan remains the source of requirements and proofs.
 
-- The task, its requirement rows, and the decisions and code the plan gives
-  for it.
-- The files and line ranges to start from, and the files other lanes own,
-  which this task must not change.
-- The proofs that must pass and what "done" means.
+**Task brief** (`$RUN/tasks/<N>.md`, one per task). Point to the task and
+requirement IDs in the plan. Keep the brief to deltas, rulings, and path lists:
+
+- Notices of approved changes and rulings that affect this task. Point to
+  their current sections in Ref, including changed requirements and proofs;
+  do not maintain a second copy of the plan text in the brief.
+- Starting paths and known affected callers or sibling implementations.
+  Mark these as starting points, not an exhaustive list. Include paths owned
+  by other lanes that this task must not edit.
+- Changes to verification commands or completion conditions. Use the plan
+  and run brief for unchanged instructions; do not copy a reduced task spec.
+
+Put the path to this plugin's `audit-tests/SKILL.md` in the run brief. State
+that vacuous tests will be rejected. A repeatable one-off verification can
+satisfy a proof without a permanent test, subject to repository rules.
+
+**Plan updates.** Update decisions in Ref and send every affected lane its
+Ref ID and changed section references. Record the affected tasks in the run
+log. Each lane reads those sections directly before continuing; it must not
+keep working from a superseded ruling. If the change invalidates active work,
+interrupt at a safe point and preserve uncommitted edits. On resume or
+compaction, read the current task and governing decisions again. Read only
+the needed sections after the initial full read; do not relay the full text
+or keep local copies in sync. For repository plans, use their current files.
 
 Start optimistically. Watch the first subagent's first calls closely. If it
 is misconfigured (wrong directory, a command that fails, a sandbox that blocks
@@ -119,12 +143,25 @@ it), stop it, fix the brief, and start again.
 - **New implementer session** for a lane, with a handoff, only when the next
   task is in an unrelated area, the session died and will not resume, or the
   fix loop moves to a stronger model (section 7). A handoff is: the run brief,
-  the task brief, `git log --stat <base>..HEAD` for the lane, the uncommitted
-  diff summary, and the run log lines for the lane.
-- **Reviewer sessions:** one per lane. Start it at the lane's first review, and
-  keep it for every later task and PR of that lane. It reviews each task
-  commit, checks the fixes for its own findings, and triages the lane's PR
-  review comments and CI failures from the collector's report (section 5).
+  approved plan and design Ref IDs or paths, the task delta,
+  `git log --stat <base>..HEAD` for the lane, the uncommitted diff summary, and
+  the run log lines for the lane.
+- **Reviewer sessions (trial):** keep one active reviewer per lane, scoped to one PR.
+  Reuse it for related task reviews, fix checks, and PR triage within that PR.
+  Start a replacement before the next turn when any boundary is reached:
+  a different PR, six completed review turns (including fix checks and PR
+  triage), context compaction, or a move to an unrelated subsystem. Six is a
+  starting limit; evaluate it with run results rather than assuming it is
+  optimal. Never rotate during a proof or while temporary edits remain.
+  Record the PR, reviewer ID, turn count, and replacement reason in the log.
+  The replacement gets the standard review inputs, the prior candidate SHA,
+  and a short list of open finding IDs, scenarios, and relevant rulings. It
+  does not get the transcript or prior review reports. Resolved findings need
+  only their disposition when it prevents repeated work. It verifies open
+  findings against the code; it does not inherit a PASS verdict. Use task
+  review mode for new behavior and fix-check mode for scoped fixes.
+
+  These boundaries replace the reviewer, not the lane implementer.
   The implementer and reviewer share one lane worktree. Only one session owns
   that worktree at a time. Its agent may use fast-tier chore subagents for
   bounded exploration or procedural work. Do not delegate implementation,
@@ -132,8 +169,8 @@ it), stop it, fix the brief, and start again.
   code and test changes. Finish or stop all child agents before the turn ends.
   Review and fix turns can alternate; start the next turn only after the
   previous turn and its child agents end. The reviewer may edit code and tests
-  to check a claim, then restore the starting state before reporting. Its
-  separate session gives it clean context. The final verification (section 8)
+  to check a claim, then restore the starting state before reporting. A new
+  session starts with clean context. The final verification (section 8)
   uses a fresh reviewer.
 - **Chore sessions** run long procedural work: preflight and full verification
   runs. A short-lived, read-only chore collects PR feedback for one stack
@@ -142,7 +179,8 @@ it), stop it, fix the brief, and start again.
 - **No extra fixers.** A lane's review findings, PR comments, and CI failures
   go to that lane's reviewer and implementer. The PR collector gathers facts
   only. Do not start another agent to fix or triage findings. Replace a dead
-  lane session only with a handoff.
+  lane session only with a handoff. Planned reviewer replacement follows the
+  boundaries above; it does not add a second active reviewer.
 - **No relays.** Start the model you want directly. An agent whose only job is
   to drive another agent doubles the tokens and adds a failure point.
 
@@ -150,14 +188,16 @@ it), stop it, fix the brief, and start again.
 
 For each task, in lane order:
 
-1. **Write.** Send the implementer its task. It writes the code and the tests.
+1. **Write.** Send the implementer its task. It writes the code and useful
+   tests or one-off verification steps. It applies `audit-tests` to test
+   design. Vacuous tests will be rejected and cause another review cycle.
    It does not build, format, or run tests while it writes: other lanes share
    the CPU and the caches, and one build at the end costs less.
 2. **Make it clean.** The same implementer runs the brief's format, compile,
    and lint commands for the code it changed, fixes every issue, and commits.
    The commit is the review subject.
-3. **Review.** Send the task to the lane's reviewer. On the lane's first
-   review, start it with `references/review-prompt.md`. Give it
+3. **Review.** Apply the reviewer session boundaries in section 3, then send
+   the task with `references/review-prompt.md`. Give it
    the run brief, the task brief, the requirement IDs, and the base and
    candidate commits. It runs the task's proofs itself, so it needs a sandbox
    that can build. Before review, record `HEAD` and `git status --porcelain` in
@@ -175,8 +215,11 @@ For each task, in lane order:
    when the report is unclear. Send the valid CRITICAL and MAJOR findings to
    the implementer in your message, as fix instructions. Do not save the
    review. Log MINOR findings in the run log for the final review. The
-   implementer fixes, cleans, and commits. The same reviewer checks only those
-   fixes. Fix rounds follow section 7.
+   implementer fixes, cleans, and commits. It searches related paths for the
+   same specific cause and records other instances or the bounded search
+   result. The active reviewer checks those fixes and regressions they could
+   cause. A fix that adds unrelated behavior needs a task review of that
+   scope. Apply section 3 before each reviewer turn. Fix rounds follow section 7.
 5. **Prove.** Trust the reviewer's report of the checks it ran on the final
    commit of the task. Run only what it did not: the brief's format, compile,
    and lint commands (all features where the repository lints them) and the
@@ -192,11 +235,22 @@ The next task in the lane goes to the same implementer session.
 The first message to a lane session, trimmed for later tasks:
 
 ```text
-You implement lane <A>. Read <RUN>/brief.md, then <RUN>/tasks/<N>.md; they
-have the task, the commands, the git rules, and the known failures.
+You implement lane <A>. Read <RUN>/brief.md, then read the full approved plan
+and design named there once at session start. Read Ref documents directly
+with the Plans tools; use section reads for later work.
+Then read <RUN>/tasks/<N>.md for deltas, rulings, and starting paths. Later
+tasks use the same plan context plus direct reads of the current task and
+changed decisions. The brief points to the plan; it does not replace it.
 Worktree: <path>. Branch: <name>. Task <N>: <title>.
-Done means: the code and tests for Task <N> are written, format, compile, and
+Done means: the code and useful proofs for Task <N> are written, format, compile, and
 lint are clean for the code you changed, and the work is committed on <branch>.
+Read the audit-tests path in the run brief. New or changed vacuous tests will
+be rejected and cause review cycles. Use existing coverage when it proves the
+behavior. A repeatable one-off command or script is valid when a permanent
+test adds no useful protection and repository rules allow it. Report its
+steps, inputs, commit, expected result, and observed result; do not check in
+the helper only to satisfy a proof row. For a bug fix, check related paths
+for the same cause. Report the bounded search and any other instances.
 Do the whole task in this turn. Do not stop at an acknowledgement or a plan.
 Do not build or run tests until the code and tests are written. Do not end your
 turn while a command you started or a subagent you started is still running.
@@ -239,16 +293,17 @@ When every task in a PR is done:
      the report. It writes a short index plus raw evidence files. It does not
      judge findings or change the PR. Read its short index; keep raw logs and
      comment bodies out of your context.
-   - **Review.** Send each lane's items and the report path to its existing
-     reviewer with the PR triage prompt in `references/review-prompt.md`.
+   - **Review.** Apply section 3 to select or replace the reviewer for each
+     lane and PR. Send its items and the report path with the PR triage prompt
+     in `references/review-prompt.md`.
      Wait for the implementer's turn to end before starting the reviewer turn.
      It verifies each item and returns a verdict with evidence. Send no items
      to a reviewer when the collector found none for that lane.
    - **Fix.** Send valid findings to the owning lane's implementer as its next
      turn. If it is in a task, wait until that turn ends unless the PR blocks
-     other work. It fixes, cleans, and commits. The same reviewer checks its
-     fixes. Take cross-lane conflicts, base-branch failures, and owner items
-     yourself.
+     other work. It fixes, cleans, and commits. The active reviewer checks its
+     fixes, subject to section 3. Take cross-lane conflicts, base-branch
+     failures, and owner items yourself.
    - **Push once.** Apply all verified fixes bottom-up. Run targeted checks,
      restack PRs above changed branches, then push the affected stack once.
      Post `🤖 ` replies and resolve only fixed threads after the push. If
@@ -352,13 +407,17 @@ notification is not proof that a session is alive.
 
 Your own context is the largest cost in a long run: every turn re-reads it.
 
-- Pass paths and commit IDs, not file contents. Subagents read the briefs.
+- Pass Ref IDs, section references, paths, and commit IDs, not document
+  contents. Subagents read Ref sections and the briefs directly.
 - Reports go to files. Final messages stay under 1,500 characters. Read a full
   report only when the short one leaves a decision open.
 - Read `git log --stat` and `git diff --stat`, not whole diffs and logs. Read
   code only to rule on a finding you cannot judge from the report.
-- Read a Ref or other remote plan once. Work from the local copy.
-- Keep sessions alive across tasks so their caches stay warm.
+- Read the full approved plan and design once per implementer session.
+  For Ref documents, use direct section reads thereafter. Send references
+  to changed sections, not document copies.
+- Keep implementers alive across tasks. Reuse reviewers only within the
+  boundaries in section 3.
 - Run short, known commands yourself. Send long or noisy ones, and test runs,
   to a chore session.
 - Let your context compact when it fills. Write the state to the run log first

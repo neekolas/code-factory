@@ -4,9 +4,12 @@
 
 - Codex models only. The defaults are `gpt-6-sol` for both roles: medium
   effort to implement, xhigh to review.
-- Codex can read Ref through the `Plans` MCP server. Read a Ref plan once,
-  write it to `$RUN/plan.md`, and give subagents the file: a session that
-  opens Ref first spends its first calls on Ref's own guidance.
+- Codex reads Ref directly through the `Plans` MCP server. Give implementers
+  and reviewers the Ref IDs and section references. Each implementer reads
+  the full approved plan and design once, then uses section reads for tasks
+  and updates. Follow `working-with-ref`; do not export local mirrors or
+  load Ref's separate workflow guidance. Check that the child has `Read`
+  access before dispatch.
 - `~/.codex/config.toml` sets `[agents] max_threads` (12 here) for all live
   subagents and `max_depth` (2 here). Keep at most three implementers and
   their reviewers alive at once. Implementers and reviewers may start fast-tier
@@ -23,7 +26,7 @@ it.
 
 ```text
 spawn_agent  task_name: "lane-a"      model: "gpt-6-sol"   reasoning_effort: "medium" fork_turns: "none"  message: <implementer message>
-spawn_agent  task_name: "review-a"     model: "gpt-6-sol"   reasoning_effort: "xhigh"  fork_turns: "none"  message: <review prompt>
+spawn_agent  task_name: "review-a-pr1-1" model: "gpt-6-sol" reasoning_effort: "xhigh" fork_turns: "none" message: <review prompt>
 spawn_agent  task_name: "chore-ci"    model: "gpt-6-luna"  reasoning_effort: "high"  fork_turns: "none"  message: <chore>
 spawn_agent  task_name: "pr-round-1"  model: "gpt-6-luna"  reasoning_effort: "medium" fork_turns: "none"  message: <PR collector prompt>
 followup_task  target: "lane-a"  message: <next task, or the findings to fix>
@@ -35,9 +38,11 @@ interrupt_agent target: "lane-a"
 
 - A lane's next task, its fixes, and its CI fixes go to the same `task_name`
   with `followup_task`.
-- A lane has one reviewer `task_name` (for example `review-a`). Send each later
-  task review, fix check, and PR triage to it with `followup_task`. A fresh
-  reviewer is only for a plan review and the final verification.
+- A lane has one active reviewer `task_name` (for example `review-a-pr1-1`).
+  Use `followup_task` within the session boundaries in section 3 of the main
+  skill. At a boundary, retire that session and spawn a replacement with a
+  new name and the short handoff. Do not resume the retired reviewer or carry
+  it across PRs. Plan review and final verification also use fresh sessions.
 - Start a reviewer turn only after the implementer turn ends. Both sessions
   use the lane worktree. Check that the prior turn's child agents have ended.
   Resume the implementer only after the reviewer turn ends, its child agents

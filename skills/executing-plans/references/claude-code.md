@@ -6,18 +6,21 @@
 `$CLAUDE_CODE_SESSION_ID`; use its first 8 characters in the directory name.
 Codex session files go in `$RUN/sessions`, and prompts in `$RUN/prompts`.
 
-When the plan is in Ref, export it to `$RUN/plan.md` and give subagents that
-path. A session that opens Ref first reads Ref's own guidance, which cost 57 of
-115 audited Codex sessions their first calls. Export again after every plan
-edit.
+Claude and Codex sessions read Ref directly through the Plans tools. Give
+them Ref IDs and section references. Each implementer reads the full approved
+plan and design once, then uses section reads for tasks and updates. Follow
+`working-with-ref`; do not export local mirrors or load Ref's separate
+workflow guidance. Check that the selected session has `Read` access before
+dispatch, including when starting a Codex CLI session.
 
 ## Claude model sessions
 
 - Start with the `Agent` tool: `subagent_type: "general-purpose"`, the role's
   `model`, and a background run. Record the agent ID in the run log.
 - Continue a lane with `SendMessage` to that agent ID. The session keeps its
-  history. This holds for the lane's reviewer too: send each later review, fix
-  check, and PR triage to the same reviewer agent ID. Explore and Plan agents
+  history. Reuse the reviewer ID only within the session boundaries in section
+  3 of the main skill. At a boundary, retire it and start a new reviewer with
+  the short handoff. Explore and Plan agents
   cannot be resumed and cannot write files, so never use them as implementers
   or ask them to write a report file.
 - For one PR feedback round, start one short-lived, read-only general-purpose
@@ -70,14 +73,14 @@ $S watch "$RUN/sessions" lane-a 1200
 # Next task, or fixes, in the same session (background).
 $S resume "$RUN/sessions" lane-a "$RUN/prompts/lane-a.2.md"
 
-# A Codex reviewer, when the run uses one: one name per lane, started at the
-# lane's first review and resumed for each later task, fix check, and PR triage.
+# A Codex reviewer: one active name per lane and PR. Resume it only within
+# section 3's session boundaries; use a new name and handoff at a boundary.
 # It builds and runs the proofs, so it needs a build-capable sandbox. Use the
 # lane worktree after the implementer's turn ends. Check HEAD and
 # `git status --porcelain` before and after review. Resume the implementer
 # only after the reviewer restores the worktree and ends its turn.
-$S start "$RUN/sessions" review-a <worktree> gpt-6-sol xhigh write "$RUN/prompts/review-a.3.md"
-$S resume "$RUN/sessions" review-a "$RUN/prompts/review-a.pr.md"
+$S start "$RUN/sessions" review-a-pr1-1 <worktree> gpt-6-sol xhigh write "$RUN/prompts/review-a-pr1-1.3.md"
+$S resume "$RUN/sessions" review-a-pr1-1 "$RUN/prompts/review-a-pr1-1.pr.md"
 
 # State at any time, and stopping a stalled session.
 $S status "$RUN/sessions" lane-a

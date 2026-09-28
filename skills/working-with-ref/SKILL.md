@@ -1,6 +1,6 @@
 ---
 name: working-with-ref
-description: Use when the user asks for a Ref, a plan in Ref, or a Ref review, gives a plan.ref.tools link or Ref id, or when project rules require a Ref plan - covers when to write a Ref and when not to, the Plans MCP tools, review without polling, local copies for subagents, and writing decisions back
+description: Use when the user asks for a Ref, a plan in Ref, or a Ref review, gives a plan.ref.tools link or Ref id, or when project rules require a Ref plan - covers when to write a Ref and when not to, the Plans MCP tools, direct section reads by agents, review without polling, and writing decisions back
 ---
 
 # Working with Ref
@@ -42,7 +42,7 @@ A Ref id is the last part of its URL: `https://plan.ref.tools/<id>`.
 | Tool | Key parameters | Use |
 |---|---|---|
 | `Create` | `title`, `initial_content`, `initiative` | Make a Ref. Returns the id and URL. `initiative` is `user` when the user asked for the document, else `agent`. |
-| `Read` | `planId`, `offset`, `limit` | Read a Ref. |
+| `Read` | `planId`, `offset`, `limit` | Read a Ref or section. `offset` is the first line (1-indexed); `limit` is the number of lines. |
 | `Edit` | `planId`, `old_string`, `new_string`, `replace_all` | Change part of a Ref. Use this for all normal changes. |
 | `Write` | `planId`, `content`, `force_overwrite` | Replace the full Ref. Use only for a full rewrite. |
 | `Comments` | `planId`, `action`, `threadId`, `message`, `includeResolved` | `list` gives threads and the latest verdict. Also `reply`, `resolve`, `request_review`. |
@@ -126,23 +126,33 @@ question, edit the Ref in the same turn:
   add a row.
 - An open item: add it to the open questions or proposals section.
 
-Tell the user which sections changed. If a local copy or a Claude Doc is now
-old, say so.
+Tell the user which sections changed. Send affected agents the Ref id and
+section references so they can read the current text directly.
 
 ## Give a Ref to subagents
 
-Subagents do not call the Plans tools.
+Codex and Claude subagents read Ref directly through the Plans tools. Pass
+the Ref id or URL, task numbers, and section headings or requirement IDs.
+Do not export the document or relay its full text through dispatch messages.
 
-1. `Read` the Ref once. If the result stops early, read again with `offset`
-   and `limit` until you have all lines.
-2. Write it to `$RUN/plan.md` in the run directory (`executing-plans`,
-   section 1). Outside a run, use
-   `~/.agents/runs/<YYYY-MM-DD>-<repo>-<slug>-<session>/plan.md`. Put the Ref
-   URL and the read time on the first line.
-3. Give the subagent the file path and its task numbers.
-4. The subagent reports to you. You edit the Ref.
+- At lane start, each implementer reads the full approved plan and design
+  once. Page with `Read` until all sections have been read if needed.
+- For later tasks, fixes, and updates, read the needed sections with
+  `Read(planId, offset, limit)`. Include shared decisions and dependencies
+  that govern the task. Line ranges are navigation hints: edits can move
+  them. Check the heading or requirement ID in the returned text.
+- Reviewers read the sections needed for their review directly. A final
+  verifier must account for every requirement in scope.
+- After a plan change or session recovery, read the affected sections again.
+  Record the read time and any revision metadata Ref returns. Do not assume
+  a cached section is current or that a new edit is approved.
+- The subagent reports to the orchestrator, which owns plan edits. Reviewers
+  return reviews in their final message; direct read access does not change
+  where reviews belong.
 
-Read the Ref again before new work if the user can have changed it.
+Check that the selected agent can call `Read` before dispatching Ref work.
+If it cannot, report the access problem and use a session with Ref access;
+do not silently create a local mirror.
 
 ## Record delivery
 

@@ -22,3 +22,7 @@ unnecessary work. Record failures with concrete examples.
 
 Use a disposable repository and test PR for tasks that write code or comments.
 Keep the input and scoring notes with the evaluation results.
+
+For reviewer prompt and session changes, also use the
+[reviewer comparison](reviewer-comparison.md). It measures bug detection and
+false findings separately from completion of proof rows.

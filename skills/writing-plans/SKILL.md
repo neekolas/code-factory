@@ -71,6 +71,15 @@ A test that proves a spec requirement carries the repository's backlink when
 it has one (in libxmtp, `verifies: PREFIX-NNN`). Plan IDs are never linked
 from code.
 
+Use `audit-tests` when choosing test proofs. For each new test, name the
+plausible regression it detects and why existing coverage does not detect it.
+Vacuous tests will be rejected in code review and cause more review cycles.
+A proof does not need a new checked-in test: an existing test, a repeatable
+one-off script, a dry-run, or a manual check can be the right choice. Give
+inputs, steps or commands, and the expected result. Follow repository rules
+for permanent regression coverage. Do not plan tests that only match the
+wording of the plan or copy the implementation's expected output.
+
 **Spec changes.** Every plan has this section. It lists the spec requirement
 IDs the plan implements, the exact text of every spec row it adds or amends,
 and the IDs it removes, or it says "None". Writing the spec edit is a task,
@@ -79,7 +88,7 @@ the exact spec text in this section and nothing else.
 
 ### Tasks
 
-A task is the smallest change that has its own tests and that a reviewer could
+A task is the smallest change that has its own proofs and that a reviewer could
 reject while approving its neighbour. Each task has:
 
 - a goal sentence;
@@ -177,8 +186,10 @@ review has the highest return of any review.
 
 - **Reviewer:** the reviewer model from `model-choice`. It must be a different
   model from the one that wrote the plan.
-- **Input:** the plan as a file and the repository path. Export a Ref plan to
-  a file first. Nothing else: not the conversation, not your reasons.
+- **Input:** the plan's Ref ID or existing file path and the repository path.
+  A reviewer reads Ref directly; give it section references and check its
+  Plans tool access. Include the absolute path to this plugin's audit-tests skill.
+  Do not include the conversation or your reasons.
 - **Output:** the reviewer's final message to you. Never put a review in Ref,
   a doc, an artifact, a PR comment, or a file. If the transport needs a file
   (`codex exec -o`), read it and delete it.
@@ -191,14 +202,20 @@ Prompt:
 
 ```text
 Adversarially review this implementation plan. Assume it is flawed and find how.
-Plan: <file>. Repository: <path>. Read the repository's instructions
+Plan: <Ref ID or file path>. Sections: <references>. Read Ref directly with
+the Plans tools; use section reads and follow dependencies as needed.
+Repository: <path>. Read the repository's instructions
 and the specs the plan cites. Do not edit anything. Do not start subagents.
+Test quality: <absolute path to audit-tests/SKILL.md>.
 Your final message is the review; do not write it anywhere else.
 
 Attack, in order:
 1. Requirements that are untestable, ambiguous, or use a stand-in word
    (earliest, latest, bounded, sufficient, promptly) instead of a field, value,
    or comparison. Requirements with no proof, or a proof that cannot fail.
+   Apply audit-tests to planned test proofs. Flag vacuous tests as findings;
+   accept repeatable one-off verification when a permanent test adds no
+   useful protection and repository rules allow it.
 2. Coverage both ways: a goal with no requirement, a requirement with no task,
    a task with no requirement.
 3. Spec fit: a spec change that does not meet the spec bar (spec bloat); a
