@@ -32,13 +32,20 @@ dispatch, including when starting a Codex CLI session.
   bounded exploration or procedural work. They keep code and test edits,
   fixes, and review decisions in the lane session. All child agents must end
   before that lane turn ends.
+- A lane may start a long build or test with `run_in_background: true` and end
+  its turn. Claude Code resumes the lane when the command ends. The lane must
+  not poll with `Monitor` or `sleep`, and must not send its final report while
+  background work runs. Stop leftover watchers before the final report. Only
+  the orchestrator may use `Monitor` for its own external waits.
 - The effort comes from the agent definition. The `Agent` tool sets only the
   model.
 - A failed Claude subagent returns its last output. Resume it with
   `SendMessage` once. Then start a new agent with a handoff.
-- If no notification arrives within a bounded wait, check the lane's worktree
-  (`git log -1`, `git status --porcelain`). If nothing changed for 20 minutes,
-  stop the agent with `TaskStop` and start a new one with a handoff.
+- If no notification arrives within a bounded wait, check the lane's event log,
+  background command, and worktree (`git log -1`, `git status --porcelain`). A
+  live build or test follows the main skill's longer stall limit. Do not stop
+  the lane only because git has not changed. If it is stalled, stop the agent
+  with `TaskStop` and start a new one with a handoff.
 - For a lane in its own worktree, make the worktree with the repository's
   method (in libxmtp, the `working-with-worktrees` skill). Use `isolation:
   "worktree"` only when the repository needs no per-worktree setup.

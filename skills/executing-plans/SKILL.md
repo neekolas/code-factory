@@ -254,9 +254,15 @@ test adds no useful protection and repository rules allow it. Report its
 steps, inputs, commit, expected result, and observed result; do not check in
 the helper only to satisfy a proof row. For a bug fix, check related paths
 for the same cause. Report the bounded search and any other instances.
-Do the whole task in this turn. Do not stop at an acknowledgement or a plan.
-Do not build or run tests until the code and tests are written. Do not end your
-turn while a command you started or a subagent you started is still running.
+Complete the task before your final report. Do not stop at an acknowledgement
+or a plan. Do not build or run tests until the code and tests are written.
+In Claude Code, run builds and tests in the foreground when they fit within
+the Bash timeout. Split test suites if needed. For a longer command, use
+`run_in_background: true` and end this turn. Claude Code resumes you when it
+ends. Do not poll with `Monitor` or `sleep`. Do not write the final report
+until every background command has ended. Stop any leftover watcher or command
+before that report. In Codex, do not end your turn while a command you started
+is still running.
 You may use fast-tier chore subagents for bounded exploration or procedural
 work. Do not delegate code or test writing, or fixes to them. You own the
 task's code, tests, and decisions. Finish or stop all child agents before your
@@ -354,10 +360,13 @@ notification is not proof that a session is alive.
   3, and the lane needs a new session with a handoff.
 - **Finished** means all three: the platform says the turn ended, the
   session's final message exists, and the commit it reports is in git. Check
-  git, not the summary.
-- **Dead** means the session ended without a completed turn, or with an error.
-  A session that ends its turn while its own build is still running is not
-  finished: send it back to wait.
+  git, not the summary. A live background command means the task is not done.
+- **Waiting** in Claude Code means a lane turn ended with its own background
+  command still running. Claude Code resumes the lane when the command ends.
+  Do not send the task again. Wait for the notification, subject to the stall
+  rule below.
+- **Dead** means the session ended without a completed turn or with an error,
+  unless it is waiting for its own background command.
 - **Stalled** means no new event for 20 minutes and no command still running.
   A build or test that is still running is not a stall until it has run three
   times that long.

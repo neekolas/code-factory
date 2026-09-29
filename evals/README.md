@@ -23,6 +23,12 @@ unnecessary work. Record failures with concrete examples.
 Use a disposable repository and test PR for tasks that write code or comments.
 Keep the input and scoring notes with the evaluation results.
 
+For Claude Code `executing-plans`, give a lane a build that exceeds the Bash
+timeout. Check that it runs the build in the background, ends the waiting
+turn, resumes when the build exits, and sends its final report after the exit.
+The lane should make no `Monitor` calls or `sleep` loops. Keep git unchanged
+during the build; the orchestrator must not stop a live lane at 20 minutes.
+
 For reviewer prompt and session changes, also use the
 [reviewer comparison](reviewer-comparison.md). It measures bug detection and
 false findings separately from completion of proof rows.
