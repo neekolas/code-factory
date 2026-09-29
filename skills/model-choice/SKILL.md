@@ -18,8 +18,8 @@ before the first dispatch. Record them where the run records its state.
 
 | Orchestrator | Implementer | Reviewer | Chore |
 | --- | --- | --- | --- |
-| Claude Code | `gpt-6.1-sol`, high | Opus 5.5 (`opus`) | `gpt-6-luna`, high |
-| Codex | `gpt-6.1-sol`, medium | `gpt-6-astra`, xhigh | `gpt-6-luna`, high |
+| Claude Code | `gpt-6.1-sol`, high | Opus 5.5 (`opus`) xhigh | Sonnet 5.5, high |
+| Codex | `gpt-6.1-sol`, high | `gpt-6.1-sol`, xhigh | `gpt-6-luna`, high |
 
 The planner is the session that runs `writing-plans`, usually the orchestrator
 itself. Default planner: Opus 5.5 in Claude Code; the session's own model in
