@@ -34,13 +34,11 @@ nothing else is wrong.
 | Tier | Codex | Claude | Use for |
 | --- | --- | --- | --- |
 | Frontier | `gpt-6-astra` | `opus` (Opus 5.5), `fable` (Fable 5.1) | Security, concurrency, protocol state, data migration, subtle bugs, and review |
-| Workhorse | `gpt-6.1-sol` | `sonnet` (Sonnet 5) | Most implementation |
+| Workhorse | `gpt-6.1-sol` | `sonnet` (Sonnet 5.5) | Most implementation |
 | Fast | `gpt-6-luna` | `haiku` (Haiku 4.5) | Chores and mechanical edits |
 
 Effort, from least to most: `low`, `medium`, `high`, `xhigh`, `max`, `ultra`.
 Luna stops at `max`. Use `high` for implementation and review of real code.
-Use `low` or `medium` for mechanical work. Use `xhigh` or more only when the
-plan names the risk that needs it.
 
 Codex takes effort per session (`-c model_reasoning_effort=<e>` or the
 `reasoning_effort` field of `spawn_agent`). A Claude Code subagent takes its
