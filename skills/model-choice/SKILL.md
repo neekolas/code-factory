@@ -18,8 +18,8 @@ before the first dispatch. Record them where the run records its state.
 
 | Orchestrator | Implementer | Reviewer | Chore |
 | --- | --- | --- | --- |
-| Claude Code | `gpt-6-sol`, high | Opus 5.5 (`opus`) | `gpt-6-luna`, high |
-| Codex | `gpt-6-sol`, medium | `gpt-6-sol`, xhigh | `gpt-6-luna`, high |
+| Claude Code | `gpt-6.1-sol`, high | Opus 5.5 (`opus`) | `gpt-6-luna`, high |
+| Codex | `gpt-6.1-sol`, medium | `gpt-6-astra`, xhigh | `gpt-6-luna`, high |
 
 The planner is the session that runs `writing-plans`, usually the orchestrator
 itself. Default planner: Opus 5.5 in Claude Code; the session's own model in
@@ -27,13 +27,14 @@ Codex.
 
 ## Catalogue
 
-Checked on 2026-09-23. When a name fails, run `codex debug models`. A wrong
-Codex model name fails at once with HTTP 400; nothing else is wrong.
+Codex names checked on 2026-09-29. When a name fails, run
+`codex debug models`. A wrong Codex model name fails at once with HTTP 400;
+nothing else is wrong.
 
 | Tier | Codex | Claude | Use for |
 | --- | --- | --- | --- |
 | Frontier | `gpt-6-astra` | `opus` (Opus 5.5), `fable` (Fable 5.1) | Security, concurrency, protocol state, data migration, subtle bugs, and review |
-| Workhorse | `gpt-6-sol` | `sonnet` (Sonnet 5) | Most implementation |
+| Workhorse | `gpt-6.1-sol` | `sonnet` (Sonnet 5) | Most implementation |
 | Fast | `gpt-6-luna` | `haiku` (Haiku 4.5) | Chores and mechanical edits |
 
 Effort, from least to most: `low`, `medium`, `high`, `xhigh`, `max`, `ultra`.

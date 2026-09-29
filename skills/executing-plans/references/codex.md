@@ -2,8 +2,8 @@
 
 ## Limits
 
-- Codex models only. The defaults are `gpt-6-sol` for both roles: medium
-  effort to implement, xhigh to review.
+- Codex models only. Use `gpt-6.1-sol` at medium effort to implement.
+  Use `gpt-6-astra` at xhigh effort to review.
 - Codex reads Ref directly through the `Plans` MCP server. Give implementers
   and reviewers the Ref IDs and section references. Each implementer reads
   the full approved plan and design once, then uses section reads for tasks
@@ -25,8 +25,8 @@ the task, so the session does not need your history. A reviewer must not see
 it.
 
 ```text
-spawn_agent  task_name: "lane-a"      model: "gpt-6-sol"   reasoning_effort: "medium" fork_turns: "none"  message: <implementer message>
-spawn_agent  task_name: "review-a-pr1-1" model: "gpt-6-sol" reasoning_effort: "xhigh" fork_turns: "none" message: <review prompt>
+spawn_agent  task_name: "lane-a"      model: "gpt-6.1-sol" reasoning_effort: "medium" fork_turns: "none"  message: <implementer message>
+spawn_agent  task_name: "review-a-pr1-1" model: "gpt-6-astra" reasoning_effort: "xhigh" fork_turns: "none" message: <review prompt>
 spawn_agent  task_name: "chore-ci"    model: "gpt-6-luna"  reasoning_effort: "high"  fork_turns: "none"  message: <chore>
 spawn_agent  task_name: "pr-round-1"  model: "gpt-6-luna"  reasoning_effort: "medium" fork_turns: "none"  message: <PR collector prompt>
 followup_task  target: "lane-a"  message: <next task, or the findings to fix>

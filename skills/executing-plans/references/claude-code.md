@@ -71,7 +71,7 @@ Write each prompt to a file with the `Write` tool, for example
 S="<skill dir>/scripts/codex-session.sh"   # <skill dir>: see the main SKILL.md
 
 # Start a lane session (Bash with run_in_background: true).
-$S start "$RUN/sessions" lane-a <worktree> gpt-6-sol high write "$RUN/prompts/lane-a.1.md"
+$S start "$RUN/sessions" lane-a <worktree> gpt-6.1-sol high write "$RUN/prompts/lane-a.1.md"
 
 # Watchdog for the same session (a second background Bash). It exits and
 # notifies you with done, failed, died, or stalled.
@@ -86,7 +86,7 @@ $S resume "$RUN/sessions" lane-a "$RUN/prompts/lane-a.2.md"
 # lane worktree after the implementer's turn ends. Check HEAD and
 # `git status --porcelain` before and after review. Resume the implementer
 # only after the reviewer restores the worktree and ends its turn.
-$S start "$RUN/sessions" review-a-pr1-1 <worktree> gpt-6-sol xhigh write "$RUN/prompts/review-a-pr1-1.3.md"
+$S start "$RUN/sessions" review-a-pr1-1 <worktree> gpt-6-astra xhigh write "$RUN/prompts/review-a-pr1-1.3.md"
 $S resume "$RUN/sessions" review-a-pr1-1 "$RUN/prompts/review-a-pr1-1.pr.md"
 
 # State at any time, and stopping a stalled session.
