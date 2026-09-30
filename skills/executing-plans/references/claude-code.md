@@ -15,16 +15,24 @@ dispatch, including when starting a Codex CLI session.
 
 ## Claude model sessions
 
-- Start with the `Agent` tool: `subagent_type: "general-purpose"`, the role's
-  `model`, and a background run. Record the agent ID in the run log.
+- Start implementers and chores with `Agent`,
+  `subagent_type: "general-purpose"`, and the selected model. For a Claude code reviewer,
+  dispatch `subagent_type: "code-factory:adversarial-reviewer"`, using the
+  installed agent name exposed by the host. Its definition sets `model: opus`
+  and `effort: xhigh`. Record the actual agent type, model, effort, and ID.
+  For plan review, use a suitable custom reviewer with supported effort or
+  verify the general-purpose agent's inherited effort before dispatch.
 - Continue a lane with `SendMessage` to that agent ID. The session keeps its
-  history. Reuse the reviewer ID only within the session boundaries in section
-  3 of the main skill. At a boundary, retire it and start a new reviewer with
-  the short handoff. Explore and Plan agents
+  history. Send all CI feedback directly to the same implementer. The first
+  fresh broad review finishes before PR submission. A later
+  review is conditional after successful current-head CI and handled
+  feedback. Do not dispatch reviewer triage or mid-loop repair reviews.
+  Reuse the reviewer only for related scope while its context remains intact.
+  Use a fresh reviewer for another PR or after compaction. Explore and Plan agents
   cannot be resumed and cannot write files, so never use them as implementers
   or ask them to write a report file.
-- For one PR feedback round, start one short-lived, read-only general-purpose
-  agent on the cheap chore model. Give it `references/pr-collector.md` and the
+- Prefer scripts for PR collection. For large collections, use one optional
+  read-only general-purpose agent on the chore model. Give it `references/pr-collector.md` and the
   entire stack. It writes the report and does not triage or fix findings.
 - Claude Code runs at most 20 subagents at once. Count Codex background shells
   separately; the machine's build capacity is the tighter limit.
@@ -37,8 +45,11 @@ dispatch, including when starting a Codex CLI session.
   not poll with `Monitor` or `sleep`, and must not send its final report while
   background work runs. Stop leftover watchers before the final report. Only
   the orchestrator may use `Monitor` for its own external waits.
-- The effort comes from the agent definition. The `Agent` tool sets only the
-  model.
+- Verify the applied effort. Custom frontmatter can override session effort,
+  but environment settings and host caps can change it. `xhigh` is supported
+  for Opus 5.5 in the primary docs checked on 2026-09-30. Do not claim it ran
+  when the host applied a lower level. See [subagent frontmatter](https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields)
+  and [model effort](https://code.claude.com/docs/en/model-config#adjust-effort-level).
 - A failed Claude subagent returns its last output. Resume it with
   `SendMessage` once. Then start a new agent with a handoff.
 - If no notification arrives within a bounded wait, check the lane's event log,
@@ -80,10 +91,10 @@ $S watch "$RUN/sessions" lane-a 1200
 # Next task, or fixes, in the same session (background).
 $S resume "$RUN/sessions" lane-a "$RUN/prompts/lane-a.2.md"
 
-# A Codex reviewer: one active name per lane and PR. Resume it only within
-# section 3's session boundaries; use a new name and handoff at a boundary.
-# It builds and runs the proofs, so it needs a build-capable sandbox. Use the
-# lane worktree after the implementer's turn ends. Check HEAD and
+# A Codex reviewer: fresh broad review before first submission. Resume only for a required
+# related scoped recheck. It runs focused checks, so it needs a build-capable
+# sandbox. A later review waits for successful current-head CI and handled
+# feedback. Use the lane worktree after the implementer's turn ends. Check HEAD and
 # `git status --porcelain` before and after review. Resume the implementer
 # only after the reviewer restores the worktree and ends its turn.
 $S start "$RUN/sessions" review-a-pr1-1 <worktree> gpt-6-astra xhigh write "$RUN/prompts/review-a-pr1-1.3.md"
@@ -94,6 +105,13 @@ $S status "$RUN/sessions" lane-a
 $S stop "$RUN/sessions" lane-a
 ```
 
+- Active CLI sessions receive new feedback through the durable run-directory
+  inbox in `references/feedback-inbox.md`, not `SendMessage`. Write atomic
+  immutable item versions as evidence arrives. The implementer reads them
+  at safe checkpoints and before commit, push, and final report. Resume an
+  idle session with the inbox path. Do not start a concurrent resume or
+  interrupt useful work to deliver feedback. Native Claude agents continue
+  to receive native messages.
 - Wait on the background `watch` command, not on a `Monitor` with a time
   limit: a 30-minute Monitor expires and must be re-armed, which wakes you for
   nothing.
@@ -123,8 +141,8 @@ $S stop "$RUN/sessions" lane-a
 
 ## Asking the user
 
-Use `AskUserQuestion` for the model choice and for rulings that change scope
-or a contract. Put the recommended option first.
+Use existing model choices or configured defaults. Use `AskUserQuestion`
+only for a decision outside existing authorization or the approved contract. Put the recommended option first.
 
 ## Optional tools
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review a finished run"
+  short_description: "Find repeated costs and propose fixes"
+  default_prompt: "Use $session-retro to review the finished run and propose changes from its evidence."

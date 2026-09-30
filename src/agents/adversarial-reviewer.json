@@ -2,7 +2,8 @@
   "name": "adversarial-reviewer",
   "description": "Review an implementation with clean context and report defects to the caller.",
   "claude": {
-    "model": "opus"
+    "model": "opus",
+    "effort": "xhigh"
   },
   "opencode": {
     "mode": "subagent",

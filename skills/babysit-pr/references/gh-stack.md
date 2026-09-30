@@ -42,3 +42,9 @@ gh stack submit --auto        # pushes all branches, syncs PRs
 - After `rebase --upstack`, re-check all higher PRs from scratch — the rebase can introduce new failures upstack.
 - If the base branch moved (merged PRs below), `gh stack sync` handles fetch + cascade rebase + push in one command — but it aborts (successfully, with `ℹ Sync aborted`) on local/remote stack divergence in non-interactive mode; treat that as an escalation, not a retry loop.
 - Exit codes worth branching on: 3 = rebase conflict (resolve + continue), 6 = branch in multiple stacks (checkout a non-shared branch first), 8 = lock held (wait and retry once), 9 = stacks not enabled on the repo (fall back to standalone handling per PR).
+
+For a new PR, finish the fresh adversarial review and close initial blocking
+findings before first submission. Repairs after submission can push after
+fast checks. Current-head CI and Macroscope must succeed and feedback must
+be handled before a conditional second review. Preserve deferred thread
+closure flags through restacks; do not start a mid-loop adversarial review.

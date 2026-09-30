@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write a plan"
+  short_description: "Define requirements, tasks, and proofs"
+  default_prompt: "Use $writing-plans to draft a plan with requirements and useful proofs."

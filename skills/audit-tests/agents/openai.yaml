@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit tests"
+  short_description: "Find tests that miss real defects"
+  default_prompt: "Use $audit-tests to check whether the tests detect realistic regressions."

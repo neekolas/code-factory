@@ -1,0 +1,12 @@
+interface:
+  display_name: "Work with Ref"
+  short_description: "Read and update approved Ref plans"
+  default_prompt: "Use $working-with-ref to read or update the requested Ref plan."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "Plans"
+      description: "Ref plan documents"
+      transport: "streamable_http"
+      url: "https://api.plan.ref.tools/mcp"

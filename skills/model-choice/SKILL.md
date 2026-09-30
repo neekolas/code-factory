@@ -1,6 +1,6 @@
 ---
 name: model-choice
-description: Use before an orchestrator dispatches its first subagent, or when the user asks which model to use for a task - names the implementer, reviewer, and chore models and efforts, asks the user when the prompt does not name them, and says when to escalate
+description: Use before an orchestrator dispatches its first subagent, or when the user asks which model to use for a task - names the implementer, reviewer, and chore models and efforts, uses existing choices or host models, asks only when needed, and says when to escalate
 ---
 
 # Model choice
@@ -10,9 +10,9 @@ before the first dispatch. Record them where the run records its state.
 
 | Role | Does | Session length |
 | --- | --- | --- |
-| Implementer | Writes code and tests. Fixes build errors and review findings. | Long: one session per lane, across tasks and PRs |
-| Reviewer | Reviews a plan or a frozen diff. Runs the verifications. Triages collected PR comments and CI failures. May make temporary edits, then restores them. | One PR at most; rotate at the executing-plans boundaries. Fresh for a plan review and final verification. |
-| Chore | Procedural work: preflight, long verification runs, PR feedback collection, mechanical edits. | As long as the chore |
+| Implementer | Writes code and tests. Validates all CI and review findings, fixes defects, and records proofs. | Long: one session per lane, across tasks and PRs |
+| Reviewer | Reviews a plan or a frozen PR diff. Runs focused checks. May make temporary edits, then restores them. | Fresh for a plan or first pre-submission PR review; conditional later review after successful CI; reuse only for related scope. |
+| Chore | Optional help with preflight, long checks, or large feedback collection. Prefer scripts for mechanical work. | As long as the chore |
 
 ## Defaults
 
@@ -27,9 +27,9 @@ Codex.
 
 ## Catalogue
 
-Codex names checked on 2026-09-29. When a name fails, run
-`codex debug models`. A wrong Codex model name fails at once with HTTP 400;
-nothing else is wrong.
+These names are examples checked on 2026-09-29. Use the host's advertised
+models and efforts. In a local CLI, `codex debug models` can check names.
+Do not assume that the app or Cloud has that CLI or the same model list.
 
 | Tier | Codex | Claude | Use for |
 | --- | --- | --- | --- |
@@ -37,12 +37,16 @@ nothing else is wrong.
 | Workhorse | `gpt-6.1-sol` | `sonnet` (Sonnet 5.5) | Most implementation |
 | Fast | `gpt-6-luna` | `haiku` (Haiku 4.5) | Chores and mechanical edits |
 
-Effort, from least to most: `low`, `medium`, `high`, `xhigh`, `max`, `ultra`.
+Codex effort, from least to most: `low`, `medium`, `high`, `xhigh`, `max`, `ultra`.
 Luna stops at `max`. Use `high` for implementation and review of real code.
 
 Codex takes effort per session (`-c model_reasoning_effort=<e>` or the
-`reasoning_effort` field of `spawn_agent`). A Claude Code subagent takes its
-effort from its agent definition; the `Agent` tool chooses only the model.
+`reasoning_effort` field of `spawn_agent`). For Claude Code, use supported model effort levels. The custom
+`code-factory:adversarial-reviewer` definition sets `opus` and `xhigh`. Dispatch
+that agent for code review. For another agent, verify its explicit or inherited
+effort. Record the applied effort and any cap; a requested value is not proof
+that it ran. See [Claude frontmatter](https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields)
+and [effort support](https://code.claude.com/docs/en/model-config#adjust-effort-level).
 
 ## Rules
 
@@ -57,38 +61,47 @@ effort from its agent definition; the `Agent` tool chooses only the model.
 4. Pick the tier for the task, not for the plan. A task the plan marks as
    frontier gets its own implementer session at that tier.
 5. Do not use the fast tier as a reviewer, or as an implementer that works
-   from prose. Cheap models take two to three times the turns on multi-step
-   work, so they cost more in total.
-6. When a model is not available or hits a usage limit, use the next model in
-   the same tier at once, then the tier below. Do not wait for a limit to
-   reset. Record each substitution.
+   from prose. Use the fast tier for bounded mechanical work. Do not assume that a
+   lower price per turn reduces the total cost of multi-step work.
+6. When a model is unavailable or hits a usage limit, substitute only within
+   existing user authorization. Explicit user model requirements take
+   precedence. If the required model has no approved fallback, report the
+   gap and stop dependent work. Otherwise use an available model in the
+   same tier, then a permitted lower tier. Never use a fast reviewer or a
+   fast implementer that works from prose. Record substitutions and actual
+   effort; do not wait for a limit to reset.
 7. When a model has a tight session limit, keep it for review, where it adds
    the most, and not for long implementation sessions.
 
-## Ask when the prompt does not name the models
+## Ask only for a new decision
 
-If the user's prompt or an approved plan does not name all three roles, ask
-before the first dispatch. Ask only about the roles that are not named. Give
+Use explicit user choices, approved plan choices, or the host's configured
+defaults first. Do not ask again for an existing choice. Select an available
+model at the needed tier when no explicit choice exists. Ask only when the
+choice needs a user decision, such as a new paid provider or an unavailable
+required model. Ask only about those roles. Give
 the default first, marked "(Recommended)", and two alternatives with a
 one-line reason each.
 
 - Claude Code: one `AskUserQuestion` call with one question per role.
 - Codex: one short message that lists each role, its default, and the
   alternatives. Then end the turn and wait.
-- No user present (a scheduled or headless run): use models the user approved
-  earlier for this work (the plan's Models section, or the prompt that
-  scheduled the run). If there are none, post the question and stop.
+- No user present: use existing authorization and configured host models.
+  If a required choice is outside that authorization, report it and stop
+  dependent work. Do not poll for a person.
 
 ## Escalate
 
-Fix rounds on the same finding or failure:
+Count failed repair attempts on the same cause, using check results. Do
+not count reviewer turns or routine feedback batches as failed attempts:
 
-1. Rounds 1-3: the same implementer session, with the findings as written.
-2. Rounds 4-5: a new session one step up, with a handoff: a higher effort
+1. Attempts 1-3: the same implementer session, with the findings as written.
+2. Attempts 4-5: a new session one step up, with a handoff: a higher effort
    first, then the frontier tier. In Codex a higher effort needs a new session
    or a resume with the new `-c model_reasoning_effort`.
-3. After round 5 the orchestrator rules: it takes the task itself, changes the
-   approach, or parks the finding with a recorded ruling.
+3. After attempt 5 the orchestrator rules: it takes the task itself, changes the
+   approach, or requests an owner decision. A deferred blocking finding stays
+   open and prevents readiness.
 
 Record each step in the run log.
 
@@ -96,5 +109,5 @@ Record each step in the run log.
 
 | Orchestrator | Claude model | Codex model |
 | --- | --- | --- |
-| Claude Code | `Agent` tool with `model` | `codex exec` in a background shell (see `executing-plans`, Claude Code variant) |
-| Codex | Not available | `spawn_agent` with `model` and `reasoning_effort` |
+| Claude Code | `Agent` with the custom code reviewer or verified inherited effort; record the applied model and effort | `codex exec` in a background shell (see `executing-plans`, Claude Code variant) |
+| Codex | Not available | Native agent tools when exposed, with supported model settings |

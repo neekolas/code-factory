@@ -30,7 +30,8 @@ on the user.
 ## 1. Find the run, then gate
 
 Use the run directory the user names, or the newest one for this repository
-in `~/.agents/runs/`. Its `log.md` gives the orchestrator's session ID and CLI,
+in the run root recorded by `executing-plans`. Check `~/.agents/runs/`
+only when that local path exists. Its `log.md` gives the orchestrator's session ID and CLI,
 the start time, and the worktrees. `$RUN` below is that directory. The gate is
 one script and no model call:
 
@@ -47,6 +48,14 @@ was active in those checkouts during the run, and only events after `--since`
 count. A Codex orchestrator omits `--claude` and passes its own thread ID with
 `--codex`.
 
+In the app or Cloud, local CLI transcripts may be absent. Use the preserved
+run log, proof records, feedback, PR results, and available session summaries.
+Do not run the miner on missing transcript paths or report zero incidents
+as proof of a clean run. State the evidence limit. Without measured token
+data, give observed repeats and qualitative savings instead of invented
+token estimates. Use one analysis subagent when available; otherwise do the
+analysis in this session.
+
 The gate recommends; you decide. Weigh `gate.recommend` and its reasons with
 the run log: sessions that died, reviews that repeated, reports that proved
 wrong, time the user had to prod the orchestrator. A long, clean run can trip
@@ -62,8 +71,8 @@ python3 "$S/retro-mine.py" --repo . <same session arguments> > "$RUN/retro/retro
 python3 "$S/retro-ledger.py" list --repo "$(git remote get-url origin)" --open > "$RUN/retro/ledger.json"
 ```
 
-Start one analysis subagent: workhorse tier from `model-choice`, clean
-context. It may read files and run read-only `git` and `gh` commands. Give it
+When agent tools are available, start one analysis subagent: workhorse tier
+from `model-choice`, clean context. Otherwise analyse in the current session. It may read files and run read-only `git` and `gh` commands. Give it
 the repository path, the run's PR numbers, `$RUN/retro/retro.json`,
 `$RUN/retro/ledger.json`, the run log, and the plan's `Execution notes`:
 
@@ -74,7 +83,10 @@ repository <path>, PRs <numbers>. Do not edit files. Do not start subagents.
 Your final message is the result.
 
 Evidence
-- Work from retro.json. For each signature, open at least one `where` entry
+- Work from retro.json when available. With limited host records, work from
+  the supplied run log, proof records, feedback, and session summaries. State
+  the missing sources. Do not invent signature IDs or measured counts.
+  For each mined signature, open at least one `where` entry
   in its transcript and confirm the failure is real. Report the confirmed
   count, not the raw count. Never read a transcript whole. Transcripts can
   hold secrets: quote only text that retro.json already scrubbed.
@@ -148,7 +160,9 @@ proposals show the full before and after text. `script` and `check` proposals
 show the intended change and the test.
 
 - In Claude Code: a Claude doc (Artifact), opened for the user.
-- In Codex: a Ref document (see `working-with-ref`).
+- In Codex: the document surface the user requested, or a Markdown file
+  opened in the app when available. Use Ref only when requested or required
+  (see `working-with-ref`).
 
 For each proposal: the title, kind, and target; before and after; the
 evidence (signature IDs, confirmed counts, one scrubbed sample, and the
@@ -180,8 +194,11 @@ all acknowledged or already fixed)."
   repeats the landed-fix search. It applies the approved text exactly; any
   difference is listed in the PR. One PR for all fixes in one reply, one
   commit per proposal. It runs the repository's lint for changed files and
-  tests for any changed script or check. A script or check also gets a review
-  from the reviewer model. The PR description has, per proposal, the evidence
+  tests for any changed script or check. Every candidate gets a fresh adversarial review after fast checks and
+  before first PR submission. Close its initial blocking findings with proof.
+  Route later CI feedback directly to the same implementer. Assess a second
+  review only after successful current-head checks and handled feedback,
+  using accumulated risk and behavior changes. The PR description has, per proposal, the evidence
   (scrubbed), the estimate, and the before and after. Never merge a retro PR.
 - **`issue`**: one issue per proposal in the repository's tracker (`gh issue
   create` by default) with the problem, the scrubbed evidence, the estimate,

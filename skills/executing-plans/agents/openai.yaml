@@ -1,0 +1,4 @@
+interface:
+  display_name: "Execute a plan"
+  short_description: "Implement, review, and close PR feedback"
+  default_prompt: "Use $executing-plans to review before PR submission, handle CI feedback directly, and assess a second review after successful CI."

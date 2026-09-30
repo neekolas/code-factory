@@ -3,6 +3,17 @@ set -euo pipefail
 
 case "${1:-} ${2:-}" in
   'pr view')
+    if [[ "$*" == *'--json headRefOid' ]]; then
+      if [[ ${GH_CASE:?} == head_error ]]; then
+        echo 'head unavailable' >&2
+        exit 1
+      elif [[ $GH_CASE == head_race ]]; then
+        echo '{"headRefOid":"changed"}'
+      else
+        echo '{"headRefOid":"abc123"}'
+      fi
+      exit 0
+    fi
     printf '%s\n' '{"number":42,"url":"https://example.test/pull/42","state":"OPEN","isDraft":false,"headRefName":"topic","headRefOid":"abc123","baseRefName":"main","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN"}'
     ;;
   'pr checks')
@@ -10,22 +21,36 @@ case "${1:-} ${2:-}" in
     [[ ${1:-} == 42 ]] || exit 2
     shift
     if [[ ${1:-} == --required ]]; then
-      [[ ${2:-} == --json && ${3:-} == name,bucket && $# -eq 3 ]] || exit 2
+      [[ ${2:-} == --json && ${3:-} == name,bucket,link && $# -eq 3 ]] || exit 2
       case ${GH_CASE:?} in
-        passing|optional_failure|threads_paginated)
+        passing|optional_failure|threads_paginated|head_race|head_error)
           if [[ $GH_CASE == optional_failure ]]; then
             echo "no required checks reported on the 'topic' branch" >&2
             exit 1
           fi
-          printf '%s\n' '[{"name":"compile","bucket":"pass"}]'
+          printf '%s\n' '[{"name":"compile","bucket":"pass","link":"https://example.test/compile"}]'
           ;;
         required_failure)
-          printf '%s\n' '[{"name":"compile","bucket":"fail"}]'
+          printf '%s\n' '[{"name":"compile","bucket":"fail","link":"https://example.test/compile"}]'
           exit 1
           ;;
-        pending)
-          printf '%s\n' '[{"name":"compile","bucket":"pending"}]'
+        pending|differing_response)
+          printf '%s\n' '[{"name":"compile","bucket":"pending","link":"https://example.test/compile"}]'
           exit 8
+          ;;
+        optional_only)
+          printf '%s\n' '[]'
+          ;;
+        missing_required)
+          printf '%s\n' '[{"name":"compile","bucket":"pending","link":"https://example.test/compile"}]'
+          exit 8
+          ;;
+        unknown_required)
+          printf '%s\n' '[{"name":"compile","bucket":"unknown","link":"https://example.test/compile"}]'
+          ;;
+        required_only_failure)
+          printf '%s\n' '[{"name":"hidden","bucket":"fail","link":"https://example.test/hidden"}]'
+          exit 1
           ;;
         none)
           printf '%s\n' '[]'
@@ -39,7 +64,7 @@ case "${1:-} ${2:-}" in
     else
       [[ ${1:-} == --json && ${2:-} == name,state,bucket,link && $# -eq 2 ]] || exit 2
       case ${GH_CASE:?} in
-        passing|optional_failure|pending|required_error|threads_paginated)
+        passing|optional_failure|pending|required_error|threads_paginated|differing_response|optional_only|missing_required|unknown_required|head_race|head_error|required_only_failure)
           if [[ $GH_CASE == optional_failure ]]; then
             printf '%s\n' '[{"name":"compile","state":"SUCCESS","bucket":"pass","link":"https://example.test/compile"},{"name":"docs","state":"FAILURE","bucket":"fail","link":"https://example.test/docs"}]'
             exit 1

@@ -1,46 +1,57 @@
 # PR collector
 
-Use one cheap, read-only chore agent for the entire stack in one feedback
-round. The orchestrator starts this task on the first fresh review item,
-current-head check failure, merge conflict, or completion of required checks.
-The collector checks every PR before it reports. It does not wait for other
-checks, judge findings, or direct other agents.
+Prefer repository commands or bundled scripts. Use one read-only chore only
+when collection needs it. Start on the first fresh item, current-head failure,
+conflict, or required-check completion. Deliver each source as it is available.
+Do not wait for the stack, all comments, or all checks. A collector records
+raw evidence and gaps. It does not judge findings or direct fixes.
 
-Give the agent this prompt with the paths filled in:
+Give an optional collector this prompt with paths filled in:
 
 ```text
-Collect one PR feedback round for the entire stack <PR list>, bottom to top.
-Confirm the list contains every PR in that stack. Read <RUN>/brief.md and the
-snapshot and collection steps in <babysit-pr>/SKILL.md. Worktree:
-<path>. Use session name pr-round-<N>. Write a short index to
-<RUN>/reports/pr-round-<N>.md. Put full failure logs and comment bodies in
-files beside the index; link each file from it.
+Collect one feedback round for stack <PR list>, bottom to top. Confirm the
+list includes every PR. Read <RUN>/brief.md and <babysit-pr>/SKILL.md.
+Worktree: <path>. Session: pr-round-<N>. Write the evidence index to
+<RUN>/reports/pr-round-<N>.md and raw evidence beside it.
 
-Before you report, inspect every PR in the stack. For each PR, record its
-current head SHA, merge state, required and optional check states, and review
-state. Mark running checks PENDING. Fetch the logs and annotations for every
-check that has failed so far on that head. Collect review feedback with
+For each PR, record observed head, merge state, required and optional check
+states, and review state. Checks still running are PENDING. Missing checks
+are not PASS. Preserve older-head feedback and nullable source commits.
+Stable check identities include provider, run, and attempt. Do not bind an
+older result to the current head or identify a check by its name alone.
+
+Use repository commands first. Otherwise run:
 <babysit-pr>/scripts/collect-feedback.py --out <RUN>/reports/pr-round-<N>
-<owner/repo> <PR list>. It reads every page of unresolved threads, review
-bodies, conversation comments, and failing or neutral check-run output, and
-writes one JSON file for each PR. Do not write GraphQL queries. Do not treat
-an earlier head's check as current.
-Do not return a report after finding one failure or comment. Finish the
-snapshot and feedback collection for every PR first.
-Use the repository's commands first; use gh where they lack a source. If a
-head changes while you collect, mark that PR STALE so the orchestrator can
-collect it again.
+  --trusted-author <caller-trusted login>
+  --dispositions <version-dispositions.json> <owner/repo> <PR list>
+Omit trust/disposition options if no verified record exists. Trust only
+caller-named identities. A bot marker alone does not establish handling.
+The dispositions file maps exact version keys and does not drop evidence.
 
-Do not reproduce or classify findings, summarize a likely root cause, reply
-on the PR, resolve threads, edit tracked files, commit, push, or start agents.
-In the index, give one line for every PR: head, check state, item count, and
-whether collection is complete. Give the orchestrator only the index path,
-the number of PRs checked, and whether any collection is INCOMPLETE. A
-pending check does not make collection incomplete. Report any API error or
-page limit as INCOMPLETE, not as zero findings.
+The helper writes pr-N.json atomically after each source and flushes
+SOURCE N threads|reviews|comments|checks READY|INCOMPLETE updates. Forward
+ready paths through the host progress channel immediately. The parent sends
+them to the persistent implementer with native messages or the durable CLI
+inbox. Continue collecting every source and PR before your final report.
+Do not wait for other checks, judge findings, or start reviewer triage.
+
+The output carries head, nullable source_commit, comment updated_at,
+body_hash, version_key, and thread expected_last_comment_* guard fields.
+The sources map has complete/error per source. snapshot_state is COMPLETE,
+INCOMPLETE, or STALE. Failed or stale collection has complete=false.
+Partial or stale evidence can start implementer validation, but cannot
+establish readiness. Mark source errors, page limits, and changed heads;
+never describe failed access as zero findings. Recheck the current head
+before accepting a snapshot. Exit 2 needs a refreshed collection.
+
+Do not reply, resolve threads, edit tracked files, commit, push, or start
+agents. Do not message other lanes. Give the parent the index path, PR count,
+and any incomplete or stale sources. Include one index row per PR with
+head, check state, source completeness, snapshot state, and item count.
 ```
 
-The index groups items by PR and head. Each item has an ID, source type,
-link, and evidence file. A thread is handled only when its last comment is a
-`🤖 ` reply. A thread ID in the run log does not mark it handled. The index
-does not omit a later reply from anyone, including a review bot.
+Use exact item versions for acknowledgements and dispositions. A later
+comment from any author reopens validation. Before the post-CI gate, refresh
+sources and heads and confirm no new unhandled version remains. Required
+CI and Macroscope success, complete evidence, and handled feedback precede
+the conditional second review. No collector verdict can replace those gates.

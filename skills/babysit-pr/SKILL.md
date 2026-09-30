@@ -5,14 +5,24 @@ description: "Use when taking one feedback round on a pull request or stack: col
 
 # Babysit PR
 
-One round collects all feedback available across the stack, applies verified
-fixes, pushes at most once, and checks the new state. Start a round as soon as
-one fresh review item or current-head check failure appears. Check every PR in
-the stack before reporting the round. Do not wait for other checks to finish.
-Feedback that arrives later enters the next round. In an
-`executing-plans` run, that skill assigns the collector, reviewers,
-implementers, and push owner. This skill defines the work in a round, not the
-agents or wait schedule.
+One round collects available feedback, applies ready verified fixes, pushes
+at most once, and checks the new state. Deliver each actionable item to the
+implementer as it arrives. Do not wait for a full CI run or all bot comments.
+Start a round as soon as one fresh review item or current-head failure appears. Check every PR in
+the stack before closing the round. Delivery can start before collection
+finishes. Do not wait for other checks to finish.
+New feedback can join an active repair at a safe point. Items that arrive
+after its push, or cannot join safely, enter the next round. In an
+`executing-plans` run, that skill names the PR implementer and push owner.
+Send all CI comments and review findings directly to the implementer. It
+validates findings and owns repairs. Use scripts for collection; a collector
+agent is optional. This skill defines one round, not the wait schedule.
+
+User instructions take precedence over this skill. Check the host's tools
+and access before starting. Use an available GitHub connector when `gh` is
+absent. If collection is incomplete, report the missing source. Do not treat
+missing tools or credentials as a passing check. Do not install a local CLI
+or change host configuration without authorization.
 
 ## Hard rules
 
@@ -21,16 +31,22 @@ agents or wait schedule.
 - Stage changed files by name. Do not use `git add -A` or `git add .`.
 - Use new commits. Do not amend or force-push history you did not create.
   Graphite's `gt modify --commit` and restacks are allowed for its stacks.
-- Read check results only for the PR's current head commit. A failure on an
-  older head is stale. A pending check on the new head is not a pass.
-- Start each PR reply with `🤖 `. Resolve a thread only after its issue is
-  fixed. Leave questions, disagreements, and owner decisions open.
+- Use check results only for the PR's current head to establish check status.
+  Preserve older-head feedback and source identity for validation. A pending
+  or missing current-head check is not a pass. A snapshot that changes head
+  during collection is STALE and cannot establish readiness.
+- Start each PR reply with `🤖 `. Resolve only after the named closure proof
+  and any required independent scoped review pass. Guard by the validated
+  head and last comment version. Leave newer or uncertain threads, questions,
+  disagreements, and owner decisions open. GitHub provides no atomic
+  compare-and-swap guard for thread resolution.
 - Find a thread only by its ID. Never select threads to reply to or resolve by
   matching words in their text.
 - Apply fixes from the bottom of a stack upward. Restack after a lower branch
   changes, then check higher branches again.
-- Make at most one push for the stack in a round. Apply all verified fixes
-  locally before that push. A round with no code change has no push.
+- Make at most one push for the stack in a round. Apply ready verified fixes
+  locally before that push. Do not hold a completed repair for future comments.
+  A round with no code change has no push.
 
 ## Backend
 
@@ -53,50 +69,105 @@ else                                                           → STANDALONE
 
 ## One feedback round
 
-1. **Snapshot every PR.** List the whole stack from bottom to top. For each
+1. **Snapshot each affected PR.** If a signal includes a raw comment or
+   failure, deliver it with its source head immediately. Complete its evidence
+   and check the other PRs while the implementer works. List the whole stack
+   from bottom to top. For each
    branch with a PR, record its current head SHA, merge state, required and
    optional checks, and review state. Skip branches without PRs. Stop with an
    error if there is no PR. Use the repository's PR status command, or
    `scripts/check-pr.sh <pr> <repo-dir>` as a fallback. A missing check result
    is not a pass.
-2. **Collect all current feedback across the stack before reporting.** Get
-   logs and annotations for every check that has failed so far on each current
-   head. Record checks still running as pending. Fetch all pages of unresolved
-   review threads, review bodies, and conversation comments. Keep each item's
-   ID, PR, head SHA, link, and evidence. Ignore resolved threads. A thread is
-   handled only when its last comment is a `🤖 ` reply. A later comment from
-   anyone, a bot included, reopens it. Never mark a thread handled by its ID.
-   Do not treat a stale check as a current failure.
-   Use repository commands first. When they do not collect review feedback,
-   run `scripts/collect-feedback.py --out <dir> <owner/repo> <pr>...` for the
-   whole stack; do not write GraphQL queries. It reads every page, applies the
-   last-comment rule, and reads review bodies and the output of failing and
-   neutral check runs on the current head. Exit 2 and `INCOMPLETE` mean the
-   collection failed, not that there are no items.
-3. **Triage every item.** Reproduce or verify a reported defect before fixing
-   it. Find the root cause of a failed check; mark a base-branch or environment
+2. **Collect and deliver feedback as it becomes available.** Preserve all
+   source identities, known `source_commit` values, and older-head comments.
+   A source can have a null commit; do not assign it the current head without
+   evidence. Get current-head check logs and annotations as failures appear.
+   Record running checks as PENDING. Fetch all pages of unresolved threads,
+   review bodies, conversation comments, and check output. Keep item IDs,
+   version keys, links, and raw evidence. A bot marker alone does not make a
+   thread handled. Only caller-trusted author identity and a disposition for
+   that exact version can establish that it was handled. A newer comment
+   version reopens validation, including a new comment from a bot.
+
+   Use repository tools first. Otherwise run:
+
+   ```sh
+   scripts/collect-feedback.py --out <dir> --trusted-author <login> \
+     --dispositions <version-dispositions.json> <owner/repo> <pr>...
+   ```
+
+   `--trusted-author` is repeatable and names only identities the caller
+   trusts. `--dispositions` maps `version_key` to its disposition. It does
+   not remove evidence. Omit these options when there is no such record.
+   The collector writes `pr-N.json` atomically after each source and flushes
+   `SOURCE N threads|reviews|comments|checks READY|INCOMPLETE` updates.
+   Deliver each available snapshot path to its implementer immediately.
+   Native agents use native messages. Active CLI sessions use the durable
+   inbox in `executing-plans/references/feedback-inbox.md`; resume idle lanes
+   with that path. Continue other sources and PRs without waiting for checks.
+
+   The JSON records the observed `head`, nullable item `source_commit`,
+   comment `updated_at`, `body_hash`, and `version_key`. Threads include
+   `expected_last_comment_*` for reply guards. Stable check identity includes
+   provider and run identity, not only a display name. `sources` records each
+   source's `complete` and `error`. `snapshot_state` is COMPLETE, INCOMPLETE,
+   or STALE. `complete=false` and exit 2 signal failed or stale collection.
+   Partial or stale evidence can start validation and repair, but cannot
+   establish readiness. Refresh changed heads and incomplete sources.
+3. **The implementer validates every item.** Pass raw feedback paths and item
+   IDs to the existing implementer. Do not send CI comments through a reviewer
+   first. Reproduce or trace a reported defect before fixing it. Validate old
+   comments against current code and preserve the source head. Find the cause
+   of a failed check; mark a base-branch or environment
    failure separately. For a question or false report, give a concrete answer
    with evidence and leave the thread open. Flag a scope, style, or design
    decision for the PR author and leave it open. Do not silently implement an
    architectural suggestion. Keep the verdict for each item ID so the next
    round does not repeat a reply.
-4. **Fix in order.** Resolve the lowest merge conflict first. Then apply all
+4. **Fix in order.** The owning implementer makes the repair. Close routine
+   fixes with useful executable evidence and affected required checks. There
+   is no default reviewer triage or fix-check turn. In an `executing-plans`
+   run, track risk and required scoped closure flags. Do not dispatch a
+   reviewer during CI or Macroscope repair loops. Assess accumulated behavior
+   and risk changes only after successful current-head checks and handled
+   feedback. A high-risk report does not bypass that ordering.
+   Resolve the lowest merge conflict first. Then apply all
    verified code fixes from bottom to top. After each lower-branch change,
-   restack and check higher branches again. Run targeted local checks, commit
-   the fixes, and push the affected stack once. A fix on the base branch
+   restack and check higher branches again. Run fast, cheap local checks,
+   not the full repository CI suite. Keep slow required checks pending for
+   CI or a separate run. Commit the fixes, and push the affected stack once. A fix on the base branch
    needs a rebase and a new push; rerunning the old PR checks cannot test it.
+   A shared stack has one push owner. Lane implementers report commits and
+   replies to it; they do not switch branches or edit another lane's files.
    Required checks gate readiness. Investigate optional failures and report
    any that remain.
-5. **Close the round.** After the push, reply `🤖 Fixed in <commit>` on fixed
-   threads and resolve them. Answer or flag other reviewed items with their
-   evidence, without resolving owner decisions. Post the replies with
-   `scripts/post-replies.py <owner/repo> <pr> <file>`: one
-   `<thread id>|reply|<body>` or `<thread id>|reply+resolve|<body>` line for
-   each thread. Write a commit as `<sha:commit subject>`, or give
-   `--git-dir <clone>` to map a local commit ID to the pushed commit with the
-   same subject. Read the dry run, then run it again with `--post`. Snapshot
-   the new heads. All
-   required checks must pass on those heads before the PRs can be ready.
+5. **Close the round.** Reply with fix commits, named closure proof, or
+   disposition evidence. Resolve a thread only after its named proof and any
+   required independent scoped review pass. A repaired thread can stay open
+   solely for the deferred review. Other slow checks still gate readiness.
+   Leave owner decisions and disputed items open. Use repository tools first.
+   Otherwise use `scripts/post-replies.py <owner/repo> <pr> <file>` with JSON
+   Lines. Each line needs `id`, `action`, `body`, `expected_head`,
+   `expected_last_comment_id`, and either `expected_last_comment_updated_at`
+   or `expected_last_comment_hash`. Example:
+
+   ```json
+   {"id":"<thread ID>","action":"reply+resolve","body":"🤖 Fixed in <sha>. Closure: <named test> PASS.","expected_head":"<validated PR head>","expected_last_comment_id":"<comment ID>","expected_last_comment_hash":"<validated body hash>","closure_passed":true,"scoped_review_required":true,"scoped_review_passed":true}
+   ```
+
+   Use `action: "reply"` when resolution is not authorized or closure is
+   pending. Resolution needs `closure_passed: true` and an explicit
+   `scoped_review_required` boolean. When it is true, also require
+   `scoped_review_passed: true`. Do not assert a pass without evidence. Legacy
+   unguarded pipe entries are not supported. Read the dry run, then add
+   `--post` when authorized. Optional `--git-dir <clone>` maps local commit
+   references to pushed commits when the helper supports that mapping.
+
+   The poster checks the head and last comment before reply, after reply,
+   and before resolution. These checks are best effort. GitHub has no
+   compare-and-swap parameter for the mutation. If a newer head or comment
+   appears, or the result is uncertain, leave the thread open and collect
+   again. Snapshot new heads. Required checks must succeed on those heads.
 
 Repeat the round when a new push, failed check, or review item changes the
 state. If required checks finish without findings, check the exit condition.
@@ -105,6 +176,18 @@ repeated verified fixes, a check stalls, or an owner decision is needed. Do
 not keep making equivalent pushes.
 
 ## Exit condition
+
+For an `executing-plans` run, first finish the pre-submission review gate.
+During CI loops, feedback goes directly to the implementer with no reviewer
+triage or repair review. After all current-head CI and Macroscope
+checks succeed, all sources are complete, and feedback is handled, record
+the accumulated divergence decision. A required second review can then run.
+A finding returns to repair and CI before a needed scoped recheck.
+
+For that post-CI gate, handled means validated, dispositioned, and repaired
+with available proof. Name any threads open solely for deferred review.
+Owner decisions, blocking defects, missing proof, incomplete sources, and
+unhandled new comments cannot use this exception. They prevent the gate.
 
 Every PR must have no merge conflict, all required checks passing on its
 current head, all feedback addressed, and all required approvals. A reply to

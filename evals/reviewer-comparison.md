@@ -45,12 +45,14 @@ valid proof without a demand for duplicate permanent tests.
 
 Evaluate lifetime separately from prompt wording. Hold the prompt constant.
 Replay the same tasks, fixed revisions, and PR feedback to a lane-long
-reviewer and to reviewers rotated at the draft boundaries. Record new defects
+reviewer and to fresh reviewers at PR, unrelated-scope, or compaction boundaries. Record new defects
 found, repeated resolved findings, handoff cost, and time or tokens. Do not
 attribute a difference to lifetime if the candidates or models also changed.
 
-The draft limit of six review turns is a starting policy. Change it when the
-results show that a different boundary gives better detection for its cost.
+There is no turn-count rotation rule. Start fresh for each PR, unrelated
+scope, or compaction. Reuse only related review context that remains intact.
+Test the first pre-submission review and conditional post-CI review boundary.
+Hold candidates and models constant when comparing session policies.
 
 ## Plan context
 

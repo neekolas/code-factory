@@ -30,3 +30,9 @@ gt submit --stack
 - Merge conflicts during restack: resolve markers, `git add <files>`, then `gt continue`. Abort with `gt abort` if unresolvable and report.
 - Finding each branch's PR: `gh pr view <branch> --json number,url,headRefOid` works per branch; `gt ls` shows PR associations too.
 - Never run bare `gt submit` mid-loop (it may prompt); `gt submit --stack` from an updated bottom branch handles the whole stack.
+
+For a new PR, finish the fresh adversarial review and close initial blocking
+findings before first submission. Repairs after submission can push after
+fast checks. Current-head CI and Macroscope must succeed and feedback must
+be handled before a conditional second review. Preserve deferred thread
+closure flags through restacks; do not start a mid-loop adversarial review.

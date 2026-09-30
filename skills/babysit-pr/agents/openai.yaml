@@ -1,0 +1,4 @@
+interface:
+  display_name: "Address PR feedback"
+  short_description: "Validate findings and repair a PR or stack"
+  default_prompt: "Use $babysit-pr to collect PR feedback, validate each finding, and apply verified fixes."

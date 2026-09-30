@@ -6,8 +6,15 @@ description: Use when the user asks for a Ref, a plan in Ref, or a Ref review, g
 # Working with Ref
 
 Ref (plan.ref.tools) keeps plan documents. The user reviews them and adds
-comments. The Plans MCP server supplies the tools, named `mcp__Plans__<Tool>`.
-Old transcripts show `mcp__plugin_ref_Plans__<Tool>`. The tools are the same.
+comments. This plugin bundles the Plans MCP endpoint at
+`https://api.plan.ref.tools/mcp`. Use `REF_API_KEY` for its API key. The host
+must send the key in the `x-ref-api-key` header. Never put a key in a plan,
+prompt, report, or plugin file. See the repository README for host setup.
+
+Discover the connected Plans tools by operation. Their namespace can change
+with the host or plugin installation. `mcp__Plans__<Tool>` and
+`mcp__plugin_ref_Plans__<Tool>` are examples, not required names.
+User instructions take precedence over this skill.
 
 This skill replaces the Ref plugin guidance. Do not call `ListSkills`, `Skill`,
 or `Manual`. They load the old guidance, and that guidance conflicts with this
@@ -26,10 +33,11 @@ Do not write a Ref for:
 - An adversarial review of a spec or code. Give the review in the session
   that asked for it.
 - Subagent prompts, handoffs, or reports. Use files in the run directory
-  (`~/.agents/runs/`, see `executing-plans`).
+  (see the writable run path in `executing-plans`).
 - Investigations, summaries, or records of finished work that nobody asked to
   keep in Ref. Answer in chat.
-- An "artifact" or a "doc". That is a Claude Doc, not a Ref.
+- An "artifact" or a "doc" without a request for Ref. Use the user's chosen
+  document surface, or a supported document or file in the current host.
 - Questions about a document. Answer in the session. Change the Ref only with
   the revisions that the discussion causes.
 
@@ -119,8 +127,10 @@ The user's next message starts the next turn. Then:
 The Ref is the source of truth. Implementers work from it. Chat, Claude Doc
 comments, and local copies are not the source of truth.
 
-When a discussion gives a decision, a clearer definition, or a new open
-question, edit the Ref in the same turn:
+Answer document questions in the active session. Do not copy questions or
+answers into the spec. Update only revisions caused by that discussion.
+When it changes a decision, definition, or required open decision, edit the
+Ref in the same turn:
 
 - A settled item: change the text in place. If the Ref has a decisions table,
   add a row.
@@ -141,8 +151,8 @@ Do not export the document or relay its full text through dispatch messages.
   `Read(planId, offset, limit)`. Include shared decisions and dependencies
   that govern the task. Line ranges are navigation hints: edits can move
   them. Check the heading or requirement ID in the returned text.
-- Reviewers read the sections needed for their review directly. A final
-  verifier must account for every requirement in scope.
+- Reviewers read the sections needed for their review directly. The final
+  proof record must account for every requirement in scope.
 - After a plan change or session recovery, read the affected sections again.
   Record the read time and any revision metadata Ref returns. Do not assume
   a cached section is current or that a new edit is approved.
@@ -162,3 +172,10 @@ do not silently create a local mirror.
   `## Completed` section with the PR link and only the notable differences
   from the plan. Do not change the goal, decisions, or verification text.
 - A report that says "done" is not a merge.
+
+## Missing access
+
+If Ref tools are absent or authentication fails, name the missing connection
+or `REF_API_KEY` header binding. Do not read or print the key. Complete work
+that does not need Ref. A requested Ref plan must remain pending until direct
+access works. Do not make a local mirror to bypass that requirement.

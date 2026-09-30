@@ -1,461 +1,436 @@
 ---
 name: executing-plans
-description: Use when running an approved plan, or any change of several tasks, as an orchestrator - prepares a verified context brief, keeps implementers per lane and bounded reviewer sessions per PR, collects PR feedback with a cheap read-only agent, routes verified fixes, and recovers stalled sessions. Has a Claude Code variant and a Codex variant. Replaces code-factory:execute-dynamic-workflow
+description: Run an approved plan with one implementer per lane, direct implementer handling of CI feedback, a required review before PR submission, conditional review after CI, and proof-based repair. Use for changes with several tasks. Supports Claude Code, the Codex app, CLI, and Cloud.
 ---
 
 # Executing plans
 
-You are the orchestrator. You own the result: every requirement in the plan is
-met and proven, or the gap is reported with evidence. You decide, dispatch,
-check git, and integrate. Subagents do the reading and writing.
+You are the orchestrator. You own delivery, dependencies, integration, and
+unresolved decisions. User instructions take precedence over this skill.
+Each lane's implementer owns its code, proofs, and PR
+feedback. The reviewer finds defects in an independent context.
 
-Read your variant now. It says how to start, message, wait for, and recover
-sessions on your platform. This file says what to do.
+The default flow is:
+
+```text
+implement tasks -> fast local checks -> clean committed candidate
+  -> fresh adversarial review -> repair initial findings with proof
+  -> first PR submission -> CI and Macroscope feedback to same implementer
+  -> current-head checks succeed and feedback is handled
+  -> assess accumulated behavior and risk changes
+  -> conditional second adversarial review -> readiness evidence
+```
+
+Always finish one fresh adversarial review before the first PR submission.
+Record the reviewed candidate, repaired candidate, and closure proofs. Do
+not submit with an initial blocking finding open. Routine initial repairs
+close with proof. Do not dispatch a second adversarial review before CI
+settles. Track independent closure needs for the post-CI decision. If useful
+proof is impossible, request an owner decision and keep the item open.
+
+During CI and Macroscope loops, send all feedback directly to the persistent
+implementer as it becomes available. Do not run reviewer triage or adversarial
+repair reviews in that loop. Track risk and pending review closure flags.
+After current-head checks succeed and feedback is handled, assess the total
+change from the first review. A second review is conditional on behavior and
+risk changes. Line count does not decide it. A verdict alone is not readiness.
+
+Read your platform variant now:
 
 - Claude Code: `references/claude-code.md`
 - Codex: `references/codex.md`
 
-An OpenCode session can use the other skills in this plugin, but it cannot
-orchestrate with this one yet: no OpenCode variant exists. Run the
-orchestrator in Claude Code or Codex.
-
-`<skill dir>` in those files is the directory of this file. Claude Code gives
-it as `${CLAUDE_SKILL_DIR}`; Codex and OpenCode show it in their skill list.
+OpenCode has no orchestration variant. Use Claude Code or Codex for this skill.
+`<skill dir>` means the directory that contains this file.
 
 ## 1. Start
 
-1. Read the plan and the repository instructions on the path to the code. If
-   the plan has no requirements with proofs, stop and use `writing-plans`. If
-   the plan or design is in Ref, read it directly with the Plans tools. Use
-   `working-with-ref` for section reads and agent access. Pass Ref IDs and
-   section references, not exported copies. For repository documents, pass
-   their existing paths.
-2. Scan the plan once for conflicts: tasks that touch the same files or
-   interfaces, contradictions, and gaps. Decide each one and record it in the
-   run log as `Ruling: <what> - <why> - <cost if wrong>`. A clean scan needs no
-   comment.
-3. Name the implementer, reviewer, and chore models with `model-choice`. Ask
-   the user if the prompt and the approved plan do not name them.
-4. Record the base commit and branch. Work in the current worktree unless the
-   plan has parallel lanes.
-5. Create the run directory, one per orchestrator session:
+1. Read the approved plan and the repository instructions on the path to the
+   code. Each requirement needs a proof. If proofs are missing, use
+   `writing-plans`. Read Ref plans directly with the Plans tools and follow
+   `working-with-ref`. Pass Ref IDs and section references, not exported
+   copies. Use existing paths for repository plans.
+2. Check tasks for file conflicts, shared contracts, contradictions, and gaps.
+   Record each decision as `Ruling: <what> - <why> - <cost if wrong>`.
+3. Name the implementer, reviewer, and chore models with `model-choice`.
+   Existing user choices and the approved plan take precedence.
+4. Record the base commit, branches, PR map, and lanes. Use the current
+   worktree unless parallel lanes need separate worktrees. Name one
+   implementer as the owner of each PR. If several lanes produce one PR, name
+   its owner before integration. Each lane keeps ownership of its files.
+5. Check the tools, writable paths, Ref access, and GitHub access. Follow the
+   Codex variant for app and Cloud limits. Do not change host configuration
+   or install a second CLI to make the workflow run.
+6. Create one run directory per orchestrator session:
 
    ```text
-   ~/.agents/runs/<YYYY-MM-DD>-<repo>-<plan slug>-<first 8 of your session ID>/
-     log.md      run log: start time, session ID, plan, base, models, lanes, events
-     brief.md    the run brief (section 2)
-     tasks/      one task brief per task: <N>.md
-     reports/    implementer and chore reports: <session>.md
-     prompts/    dispatch prompts, when a platform needs them as files
-     sessions/   Codex session files (codex-session.sh uses this as its run dir)
+   <writable run root>/<YYYY-MM-DD>-<repo>-<plan slug>-<run ID>/
+     log.md       models, lanes, PR owners, commits, review scope, decisions
+     brief.md     verified commands, baseline, repository and plan references
+     tasks/       task deltas and starting paths
+     reports/     implementer and chore reports
+     feedback/    finding records and raw PR feedback, grouped by PR
+     inbox/       durable item versions and acknowledgements for CLI lanes
+     proofs/      requirement results and output paths, grouped by PR
+     prompts/     dispatch prompts when the platform needs files
+     sessions/    Codex session files
    ```
 
-   `$RUN` below is this directory. Add one line to `log.md` for each event: a
-   session started (with its ID and worktree), a task finished (with its
-   commit), a review verdict, a ruling, a recovery. Update it before you do
-   the next thing. It is how you, or a resumed you, find the state after a
-   crash or a compaction. Never re-run a task that the log and git show as
-   finished. The date prefix makes cleanup simple: delete a run directory 30
-   days after its PRs merge.
+Use `~/.agents/runs/` when writable. Otherwise use a host-provided writable
+artifact directory or a scratch directory outside tracked source. Use a
+short random run ID when the host supplies no session ID. Share the absolute
+path with agents. Do not write state into the installed plugin directory.
+
+`$RUN` below is this directory. Record each session start, task completion,
+review candidate and scope, feedback disposition, push, and recovery before
+the next action. Never repeat work that the log and git show as complete.
+Keep the run directory for a requested retro. Before a Cloud task ends,
+preserve the log, feedback index, and proof records as supported artifacts.
+Local cleanup may remove a run 30 days after its PRs merge.
 
 ## 2. Prepare the context
 
-Most wasted subagent work is orientation: searching for files, guessing
-commands, and meeting environment problems. Pay that cost once.
+Pay the environment setup cost once. Check git status and record the exact
+starting commit. For a clean start, reuse completed CI evidence for that
+commit when its named checks cover the needed baseline. Record the CI links,
+commit, checks, and results. A green result on another commit, a pending run,
+or a suite with no relevant coverage is not baseline evidence.
 
-**Preflight** (once per run, on the base commit; a chore session may run it):
+Do not run every plan proof before implementation. Run environment status
+commands needed for the task, plus new or one-off verification commands and
+checks that CI does not cover. If baseline evidence is missing or stale, run
+only the checks needed to resolve that gap. Mark checks for new behavior as
+NOT APPLICABLE on the base when that behavior does not yet exist. Record
+existing failures, service needs, and environment problems.
+Start repository-required helpers only when the host
+supports them. Record their commands and limits in the log. Cloud setup
+must use available services and credentials, not the user's local machine.
 
-- Run the repository's environment status commands (for libxmtp: `just
-  backend status`) and list its recipes or scripts.
-- Run every verification command the plan names, once. Record which pass and
-  which fail on the base commit. A later "this failure is pre-existing" claim
-  must cite this baseline.
-- Collect known failures: the repository's notes and your memory of flaky
-  tests and environment traps.
-- Start the run helpers now, not after the first failure: a disk guard that
-  runs the repository's prune command and reports low free space, and any CI
-  waiter. Record each helper and its start command in the run log.
+Put these items in `$RUN/brief.md`:
 
-**Brief** (`$RUN/brief.md`, shared by every session in the run):
+- Repository paths, worktrees, branches, base commit, PR owners, and file
+  ownership. Include repository git rules and the stack push owner.
+- Exact format, compile, lint, test, and service commands to use. Mark which
+  ran in preflight, which reuse exact-commit CI evidence, and which await the
+  implementation. Include wrappers, ports, baseline results, and failures.
+- Approved plan and design IDs or paths, relevant sections, and revision
+  metadata when available. The plan remains the source of requirements.
+- The absolute path to this plugin's `audit-tests/SKILL.md`. Require useful
+  tests or repeatable one-off proofs, subject to repository coverage rules.
+- Report paths. Implementer and chore final messages stay under 1,500
+  characters. Full reports go to `$RUN/reports/<session>.md`. A review exists
+  only as the reviewer's final message; finding records are not full reviews.
 
-- The repository path, worktrees, branches, base commit, and git rules: who
-  commits, no stash, no branch switches, no force-push.
-- A command table taken only from what preflight ran: the exact command, with
-  its wrapper, for format, compile, lint, targeted tests, and services, with
-  ports and URLs.
-- The baseline results and known failures.
-- The approved plan and design Ref IDs or repository paths. Include task and
-  section references, the read time, and revision metadata when available.
-- The report contract for implementers and chores: the full report goes to
-  `$RUN/reports/<session>.md`; the final message is 1,500 characters or fewer.
-  Reviewers are exempt: a review exists only as the reviewer's final message.
+Each implementer reads the full approved plan and design once at session
+start. A replacement does the same. Each task brief points to requirement
+IDs and contains only deltas, rulings, starting paths, affected callers, and
+paths the lane must not edit. Do not copy a reduced version of the task spec.
 
-**Lane context.** Each implementer reads the full approved plan and design
-once when its session starts, directly from Ref when hosted there. Include
-dependencies and work assigned to other lanes. Full context does not grant
-permission to edit another lane's files. A replacement implementer reads the same full context before its
-handoff. The plan remains the source of requirements and proofs.
+When a plan changes, update its source and send affected lanes the changed
+section references. They read those sections before continuing. If a change
+invalidates active work, interrupt at a safe point and preserve edits. After
+compaction, read the current task and governing decisions again.
 
-**Task brief** (`$RUN/tasks/<N>.md`, one per task). Point to the task and
-requirement IDs in the plan. Keep the brief to deltas, rulings, and path lists:
+Watch the first lane's first calls. Correct a wrong directory, command, or
+sandbox before it causes repeated failures.
 
-- Notices of approved changes and rulings that affect this task. Point to
-  their current sections in Ref, including changed requirements and proofs;
-  do not maintain a second copy of the plan text in the brief.
-- Starting paths and known affected callers or sibling implementations.
-  Mark these as starting points, not an exhaustive list. Include paths owned
-  by other lanes that this task must not edit.
-- Changes to verification commands or completion conditions. Use the plan
-  and run brief for unchanged instructions; do not copy a reduced task spec.
+## 3. Assign ownership and sessions
 
-Put the path to this plugin's `audit-tests/SKILL.md` in the run brief. State
-that vacuous tests will be rejected. A repeatable one-off verification can
-satisfy a proof without a permanent test, subject to repository rules.
+- **Implementer:** one persistent session per lane, across tasks and PRs. Give
+  it the tasks for a coherent PR in one turn when dependencies allow. It
+  validates review findings and CI comments, writes all lasting code and
+  tests, runs proofs, and prepares replies. It owns standalone PR pushes and
+  replies when the task authorizes those actions and its tools support them.
+- **Orchestrator:** schedules lanes, integrates their work, checks delivery
+  evidence, and resolves escalations. Pass feedback paths directly to the
+  owning implementer. Do not add a reviewer triage turn or rule on every
+  routine finding. Coordinate shared-stack pushes and replies when lane
+  sessions cannot safely perform them.
+- **Reviewer:** a fresh session for one PR's broad review. Give it
+  `references/review-prompt.md`, the base and candidate commits, plan and
+  requirement references, briefs, and raw proof output paths. Do not give it
+  the conversation, the implementer's report, or design arguments. It owns
+  the bug search and returns all confirmed findings as one batch.
+- **Chore:** optional help for long commands or large feedback collection.
+  Prefer repository commands and bundled scripts for mechanical collection.
+  A collector gathers evidence only. It does not classify findings or direct
+  fixes. Read `references/pr-collector.md` only when using a collector agent.
 
-**Plan updates.** Update decisions in Ref and send every affected lane its
-Ref ID and changed section references. Record the affected tasks in the run
-log. Each lane reads those sections directly before continuing; it must not
-keep working from a superseded ruling. If the change invalidates active work,
-interrupt at a safe point and preserve uncommitted edits. On resume or
-compaction, read the current task and governing decisions again. Read only
-the needed sections after the initial full read; do not relay the full text
-or keep local copies in sync. For repository plans, use their current files.
+Parallel lanes need disjoint files and stable contracts. Use the repository's
+worktree method and build limits. Do not put worktrees in session scratchpads.
+Keep one writer per worktree. While a reviewer uses temporary edits or runs
+proofs in the lane worktree, the implementer and its child agents stay idle.
+The first review precedes submission. CI and external review run after submission.
+A later independent review starts only after the current-head check gate.
 
-Start optimistically. Watch the first subagent's first calls closely. If it
-is misconfigured (wrong directory, a command that fails, a sandbox that blocks
-it), stop it, fix the brief, and start again.
+For complex work, choose two independent reviewers with different focus
+areas in the same review phase. They may run in parallel only in separate
+checkouts or read-only snapshots. Temporary edits require separate checkouts.
+Record the focus areas and wait for both reports before accepting the phase.
 
-## 3. Shape the sessions
+Retire a reviewer after the first pass unless a later review is needed.
+Reuse it for a related scope only while its context remains intact.
+Start a fresh reviewer for another PR, an unrelated scope, or compaction.
+Its handoff contains commits, relevant decisions, and open finding IDs and
+scenarios, not the previous review or transcript. There is no turn-count
+rotation rule and no reviewer session for routine CI feedback.
 
-- **Lanes.** Use the plan's lanes. With no lanes in the plan, use one lane. One
-  implementer session runs a lane: every task in it, in order, across PRs.
-  Each task starts a new turn in that session; its fixes and CI repairs add
-  more turns. Batch small tasks of the same shape into one turn.
-- **Parallel lanes** only when they share no files and no contract that is
-  still changing, and can merge in any order. Each parallel lane gets its own
-  worktree and branch, made with the repository's worktree method. Limit
-  concurrent builds to what the machine can hold. For Rust on a 16-core
-  machine that is about three builds with `CARGO_BUILD_JOBS=4` each.
-- **Worktree location.** Make every worktree where the repository's method
-  puts them. Never make one in a session scratchpad: nothing removes it, and
-  each worktree keeps its own build directory. In one run, 7 scratchpad
-  worktrees held 185 GiB and the disk filled twice.
-- **Compaction is fine.** Let implementer sessions, and your own, compact when
-  they fill. The run log and the briefs hold the state a compacted session
-  needs.
-- **New implementer session** for a lane, with a handoff, only when the next
-  task is in an unrelated area, the session died and will not resume, or the
-  fix loop moves to a stronger model (section 7). A handoff is: the run brief,
-  approved plan and design Ref IDs or paths, the task delta,
-  `git log --stat <base>..HEAD` for the lane, the uncommitted diff summary, and
-  the run log lines for the lane.
-- **Reviewer sessions (trial):** keep one active reviewer per lane, scoped to one PR.
-  Reuse it for related task reviews, fix checks, and PR triage within that PR.
-  Start a replacement before the next turn when any boundary is reached:
-  a different PR, six completed review turns (including fix checks and PR
-  triage), context compaction, or a move to an unrelated subsystem. Six is a
-  starting limit; evaluate it with run results rather than assuming it is
-  optimal. Never rotate during a proof or while temporary edits remain.
-  Record the PR, reviewer ID, turn count, and replacement reason in the log.
-  The replacement gets the standard review inputs, the prior candidate SHA,
-  and a short list of open finding IDs, scenarios, and relevant rulings. It
-  does not get the transcript or prior review reports. Resolved findings need
-  only their disposition when it prevents repeated work. It verifies open
-  findings against the code; it does not inherit a PASS verdict. Use task
-  review mode for new behavior and fix-check mode for scoped fixes.
+Keep the implementer session unless it dies, moves to an unrelated area, or
+needs a stronger model. A replacement gets the run brief, full plan and
+design references, task deltas, commit and diff summaries, open findings,
+proof paths, and lane log entries. Do not discard uncommitted work.
 
-  These boundaries replace the reviewer, not the lane implementer.
-  The implementer and reviewer share one lane worktree. Only one session owns
-  that worktree at a time. Its agent may use fast-tier chore subagents for
-  bounded exploration or procedural work. Do not delegate implementation,
-  fixes, or review decisions to them. The lane implementer owns all lasting
-  code and test changes. Finish or stop all child agents before the turn ends.
-  Review and fix turns can alternate; start the next turn only after the
-  previous turn and its child agents end. The reviewer may edit code and tests
-  to check a claim, then restore the starting state before reporting. A new
-  session starts with clean context. The final verification (section 8)
-  uses a fresh reviewer.
-- **Chore sessions** run long procedural work: preflight and full verification
-  runs. A short-lived, read-only chore collects PR feedback for one stack
-  round. Chores report short results, so noisy output stays out of your
-  context.
-- **No extra fixers.** A lane's review findings, PR comments, and CI failures
-  go to that lane's reviewer and implementer. The PR collector gathers facts
-  only. Do not start another agent to fix or triage findings. Replace a dead
-  lane session only with a handoff. Planned reviewer replacement follows the
-  boundaries above; it does not add a second active reviewer.
-- **No relays.** Start the model you want directly. An agent whose only job is
-  to drive another agent doubles the tokens and adds a failure point.
+Implementers and reviewers may use fast-tier chore agents for bounded reads
+or commands. They keep implementation and review decisions in their own
+sessions. Finish or stop all child agents before returning the final report.
+Do not start extra fixers or agents that only drive other agents.
 
-## 4. Task loop
+## 4. Implement the PR
 
-For each task, in lane order:
+Send `references/implementer-prompt.md` with the lane, PR, task, and run paths.
+The implementer works through its assigned tasks in dependency order:
 
-1. **Write.** Send the implementer its task. It writes the code and useful
-   tests or one-off verification steps. It applies `audit-tests` to test
-   design. Vacuous tests will be rejected and cause another review cycle.
-   It does not build, format, or run tests while it writes: other lanes share
-   the CPU and the caches, and one build at the end costs less.
-2. **Make it clean.** The same implementer runs the brief's format, compile,
-   and lint commands for the code it changed, fixes every issue, and commits.
-   The commit is the review subject.
-3. **Review.** Apply the reviewer session boundaries in section 3, then send
-   the task with `references/review-prompt.md`. Give it
-   the run brief, the task brief, the requirement IDs, and the base and
-   candidate commits. It runs the task's proofs itself, so it needs a sandbox
-   that can build. Before review, record `HEAD` and `git status --porcelain` in
-   the review worktree. `HEAD` must be the candidate commit and status must be
-   empty. If either check fails, resolve the mismatch before review; do not
-   include uncommitted work in a review of the commit. Keep the implementer
-   idle until review and its proofs finish. The reviewer may make temporary
-   edits for checks, but must restore its starting state.
-   Check `HEAD` and status again after review. If they differ from the start,
-   have the reviewer restore its changes before accepting the report. If the
-   checkout changed unexpectedly during a plan proof, repeat the affected
-   review and proof on the candidate commit. It returns its report to you only.
-4. **Rule.** Decide each finding: valid, or rejected with a one-line reason in
-   the run log. A silent discard is not allowed. Read the code yourself only
-   when the report is unclear. Send the valid CRITICAL and MAJOR findings to
-   the implementer in your message, as fix instructions. Do not save the
-   review. Log MINOR findings in the run log for the final review. The
-   implementer fixes, cleans, and commits. It searches related paths for the
-   same specific cause and records other instances or the bounded search
-   result. The active reviewer checks those fixes and regressions they could
-   cause. A fix that adds unrelated behavior needs a task review of that
-   scope. Apply section 3 before each reviewer turn. Fix rounds follow section 7.
-5. **Prove.** Trust the reviewer's report of the checks it ran on the final
-   commit of the task. Run only what it did not: the brief's format, compile,
-   and lint commands (all features where the repository lints them) and the
-   targeted tests for the directly impacted packages. Use a chore session when
-   the run is long. Do not run full suites locally; CI runs them. An
-   implementer's claim that a failure is pre-existing counts only when the
-   baseline confirms it.
-6. **Record.** Mark the task done in the run log with its final commit. Done
-   is not ready: the task is ready only when its PR is ready (section 5).
+1. Write the code and useful tests or one-off proofs. Apply `audit-tests` to
+   test design. Use existing coverage when it proves the behavior.
+2. Run fast, cheap local checks after writing the change: format, focused
+   lint or compile, and small tests or one-off proofs for the changed behavior.
+   Use the commands and scope in the brief. Do not run the full repository
+   CI suite before review. A required slow or full-suite proof runs in CI or
+   a separate scheduled check; record it as pending until it completes. Fix
+   local failures and commit. Coordinate costly commands with the build limit.
+3. Record each requirement's commit, command or named test, expected result,
+   observed result, and raw output path in `$RUN/proofs/<PR>.md`. A code read
+   or a summary claim is not an executed proof. A suite counts only when a
+   named test proves the requirement. Record missing evidence as UNVERIFIED.
+4. Report task commits and evidence. The next related task does not need an
+   adversarial review of the previous task. A task is implemented when its
+   code and proofs are complete. It is ready only when its PR is ready.
 
-The next task in the lane goes to the same implementer session.
+The run brief must distinguish fast local checks from slow checks that
+belong in CI. Do not replace a missing fast check with the full CI suite.
+Before review, report the fast-check results and any pending slow proofs.
 
-The first message to a lane session, trimmed for later tasks:
+The implementer may finish several tasks in one turn. Do not ask it to stop
+part way for a task review or an acknowledgement. Resolve an unclear contract
+through the owning plan or owner decision before dependent work. Keep the
+fresh adversarial review at the complete pre-submission candidate.
 
-```text
-You implement lane <A>. Read <RUN>/brief.md, then read the full approved plan
-and design named there once at session start. Read Ref documents directly
-with the Plans tools; use section reads for later work.
-Then read <RUN>/tasks/<N>.md for deltas, rulings, and starting paths. Later
-tasks use the same plan context plus direct reads of the current task and
-changed decisions. The brief points to the plan; it does not replace it.
-Worktree: <path>. Branch: <name>. Task <N>: <title>.
-Done means: the code and useful proofs for Task <N> are written, format, compile, and
-lint are clean for the code you changed, and the work is committed on <branch>.
-Read the audit-tests path in the run brief. New or changed vacuous tests will
-be rejected and cause review cycles. Use existing coverage when it proves the
-behavior. A repeatable one-off command or script is valid when a permanent
-test adds no useful protection and repository rules allow it. Report its
-steps, inputs, commit, expected result, and observed result; do not check in
-the helper only to satisfy a proof row. For a bug fix, check related paths
-for the same cause. Report the bounded search and any other instances.
-Complete the task before your final report. Do not stop at an acknowledgement
-or a plan. Do not build or run tests until the code and tests are written.
-In Claude Code, run builds and tests in the foreground when they fit within
-the Bash timeout. Split test suites if needed. For a longer command, use
-`run_in_background: true` and end this turn. Claude Code resumes you when it
-ends. Do not poll with `Monitor` or `sleep`. Do not write the final report
-until every background command has ended. Stop any leftover watcher or command
-before that report. In Codex, do not end your turn while a command you started
-is still running.
-You may use fast-tier chore subagents for bounded exploration or procedural
-work. Do not delegate code or test writing, or fixes to them. You own the
-task's code, tests, and decisions. Finish or stop all child agents before your
-turn ends.
-If you are blocked, stop and say what blocks you and what you tried.
-Write the full report to <RUN>/reports/<session>.md. Final message, 1,500
-characters or fewer: status (DONE | DONE_WITH_CONCERNS | BLOCKED), commits,
-checks run with results, concerns.
-```
+Integrate parallel lanes before reviewing their combined PR candidate. Run
+compile and targeted checks after integration where lanes share a contract.
+The PR owner collects each lane's proofs and handles integration feedback
+through the owning lane, without editing another lane's files.
 
-Do not ask the implementer to stop for review part way or to send progress
-updates. Both make some models stop early.
+## 5. Review, submit, and handle feedback
 
-## 5. PRs
+### Review before first submission
 
-When every task in a PR is done:
+After integration and fast local checks, record the clean candidate SHA.
+Start a fresh independent adversarial review before opening or submitting
+its first PR. The reviewer checks the whole diff, changed failure paths,
+contracts, and proof quality. It runs focused checks to establish defects.
+It does not run the full repository CI suite. Slow proofs can be PENDING.
 
-1. Merge parallel lanes into the PR branch one at a time. After each merge,
-   compile and run the targeted tests when the lanes share a contract.
-2. Push and open the PR with the repository's stack tool. The description says
-   what changed and why, the requirement IDs covered, the spec changes, how it
-   was verified (commands and results), deviations from the plan, and known
-   gaps. Do not paste review reports.
-3. Start the next planned task before you end your turn. A milestone is not a
-   stopping point.
-4. Follow each PR with the one-round procedure in `babysit-pr`. Repeat on a
-   new push or new feedback until its exit condition is met. In each round:
-   - **Wait for the first signal.** Use a background check watch or platform
-     notification. Start a round as soon as one check fails on a current head,
-     a merge conflict appears, or one fresh review item arrives. Also wake
-     when all required checks finish, to test readiness. The watch must
-     surface the first failure; do not wait for the slowest check before you
-     start work on a finding. Do not poll in your own context.
-   - **Collect.** Send one cheap, read-only chore agent across the entire
-     stack with `references/pr-collector.md`. It follows `babysit-pr` collection
-     steps and checks every PR before it reports. Pending checks do not delay
-     the report. It writes a short index plus raw evidence files. It does not
-     judge findings or change the PR. Read its short index; keep raw logs and
-     comment bodies out of your context.
-   - **Review.** Apply section 3 to select or replace the reviewer for each
-     lane and PR. Send its items and the report path with the PR triage prompt
-     in `references/review-prompt.md`.
-     Wait for the implementer's turn to end before starting the reviewer turn.
-     It verifies each item and returns a verdict with evidence. Send no items
-     to a reviewer when the collector found none for that lane. Send each
-     round's triage to that lane reviewer. Do not start a new triage session
-     for each round.
-   - **Rule.** Before you rule on a triage item, read the MUST and MUST NOT
-     rows of every requirement ID it names. A ruling must not contradict one.
-     Before a reply says that a waiver covers something, find that exact ID in
-     the repository's waiver file on that PR's head, and quote it. Write each
-     owner decision into the owning spec's Known limitations, or the
-     repository's equivalent, in the same turn. Review bots read the
-     repository, not the run log or Ref.
-   - **Fix.** Send valid findings to the owning lane's implementer as its next
-     turn. If it is in a task, wait until that turn ends unless the PR blocks
-     other work. It fixes, cleans, and commits. The active reviewer checks its
-     fixes, subject to section 3. Take cross-lane conflicts, base-branch
-     failures, and owner items yourself.
-   - **Push once.** Apply all verified fixes bottom-up. Run targeted checks,
-     restack PRs above changed branches, then push the affected stack once.
-     Post `🤖 ` replies and resolve only fixed threads after the push, with
-     `babysit-pr`'s `scripts/post-replies.py`. If there is no code change, do
-     not push. Record the heads in the run log. A thread ID in the log does
-     not mark the thread handled: its last comment does.
-   - **Ready** means every required check is green on each PR's current head,
-     feedback is addressed, required approvals are present, and no merge
-     conflict remains. A green run on an earlier commit does not count. Do
-     not report a PR or its tasks as ready before that.
-   - After a rebase or a force-push, CI must pass again on the new head
-     before you report the PR ready.
-   - A re-run of failed jobs tests the same merge commit again. It does not
-     pick up new commits on the base branch. When the fix is on the base,
-     rebase the PR branch and push; do not re-run.
-5. A stacked PR may start before the PR below it is green.
+Check HEAD and status before and after review. They must match the candidate.
+The reviewer restores only its temporary edits. If the candidate changes,
+repeat the affected scope on the correct candidate. Give findings stable IDs
+and preserve each risk and recheck flag. Send all findings to the implementer.
 
-## 6. Session health
+The implementer validates and repairs initial findings with useful
+executable closure proofs or valid dispositions. Record risk changes and
+independent closure needs for the post-CI decision. Do not dispatch another
+adversarial reviewer before that gate, even for a major repair. If useful
+proof is impossible, request an owner decision; do not invent a review
+exception. Record the first reviewed candidate, repaired candidate, finding
+dispositions, and proofs. Initial blocking findings and incomplete initial
+scope prevent submission. A tracked independent closure need may remain
+for the deferred post-CI review when the blocking defect has proven repair.
 
-A session can die or hang without a signal. Silence is not progress, and no
-notification is not proof that a session is alive.
+Then push and submit the PR with the repository's stack tool when authorized.
+Describe the behavior, requirements, verification, and known gaps. Do not
+paste the review report. The first review does not certify final readiness.
 
-- **Record** every session's ID in the run log when it starts.
-- **Wait in bounded stretches** of five to ten minutes. After each stretch,
-  check every live session's transcript or event log and its worktree, and
-  chase any that finished without a report.
-- **Check the disk** after each stretch: `df -h` on the worktrees' volume.
-  Remove a worktree as soon as its PR merges, or its work is pushed and no
-  task remains for it. First release its services with the repository's
-  method, then run `git worktree remove <path>`. When less than 15% of the
-  disk is free, remove every finished worktree before the next build starts.
-  If none is finished, tell the user.
-- **Never remove a worktree that a live session uses as its working
-  directory.** Stop the session first, or keep the worktree. A Codex session
-  cannot resume after its directory is gone: `codex-session.sh resume` exits
-  3, and the lane needs a new session with a handoff.
-- **Finished** means all three: the platform says the turn ended, the
-  session's final message exists, and the commit it reports is in git. Check
-  git, not the summary. A live background command means the task is not done.
-- **Waiting** in Claude Code means a lane turn ended with its own background
-  command still running. Claude Code resumes the lane when the command ends.
-  Do not send the task again. Wait for the notification, subject to the stall
-  rule below.
-- **Dead** means the session ended without a completed turn or with an error,
-  unless it is waiting for its own background command.
-- **Stalled** means no new event for 20 minutes and no command still running.
-  A build or test that is still running is not a stall until it has run three
-  times that long.
-- **Usage limits.** When a model hits a session or usage limit, switch to the
-  next model in its tier (`model-choice`) at once. Do not wait for the limit
-  to reset. After the limit resets, move each role back to its planned model.
-  Resume the lane's earlier reviewer session on that model, within the
-  section 3 boundaries; do not start a new one.
-- **Run helpers.** After a restart or a disk-full error, start again every
-  helper that the run log lists (disk guard, CI waiter) before other work.
-- **Waiters.** Every background waiter has a total timeout, and every `gh`
-  call in it runs under `timeout 60`. Before you start a new waiter, stop the
-  old one.
-- **Transient errors.** When a tool call fails with a transient error (a
-  classifier with no verdict, a rate limit, an HTTP 5xx), do not end your
-  turn. Wait for the backoff time with a background wait that wakes you (in
-  Claude Code, a background `sleep`). At your own usage limit, do the same
-  until the reset time.
-- **Recover** in this order:
-  1. Stop what is left of the session. Resume the same session with:
-     "Your session was interrupted. Run `git status` and `git log -3`, re-read
-     Task N in the plan, and continue. Do not redo committed work."
-  2. If two resumes fail, start a new session on the same model with a
-     handoff.
-  3. If that fails, escalate (section 7).
-- Uncommitted work from a dead session stays in its worktree. Do not reset it.
-  The next session starts from it.
-- **Never poll for a person.** When you need a decision or an approval, post
-  the request, record the state in the run log, and end your turn. Do not call
-  a waiting tool in a loop.
+### Deliver all CI and Macroscope feedback directly
 
-## 7. Escalate and decide
+Start `babysit-pr` on the first fresh item, current-head failure, or conflict.
+Send each item and raw evidence to the same implementer as it becomes
+available. Do not wait for a batch, other PRs, all comments, or all checks.
+Keep collecting sources and record partial or failed sources. A collector
+only gathers evidence. There is no reviewer triage or mid-loop adversarial
+repair review. Use native messages for native sessions. For active CLI
+sessions that cannot receive messages, use `references/feedback-inbox.md`.
+Resume idle sessions with the inbox path. Do not interrupt useful work.
 
-- Fix rounds on the same finding: rounds 1-3 in the same implementer session;
-  rounds 4-5 in a new session one step up (`model-choice`); after round 5, rule
-  on it: take the task yourself, change the approach, or park the finding
-  with a recorded ruling.
-- A fix that needs files outside the lane or changes a shared contract: take
-  the task yourself.
-- Before you design a fix, read again the memory notes whose names match the
-  problem (for example, `gh-stack-*` notes before a CI base fix). Notes
-  written after your session started are not in your context.
-- Make rulings instead of stopping. Stop and ask the user only for: an
-  irreversible or destructive operation, a security decision, a side effect
-  outside the worktree, or a plan too broken to follow. A requirement that
-  cannot be met as written is the last case: record the evidence, continue
-  with independent tasks, and ask. Do not weaken the requirement or the test.
+Keep each item in `$RUN/feedback/<PR>.md`: stable source ID and version,
+source link and head, current head, scenario, raw evidence, disposition,
+fix commit, named closure proof, risk flags, and pending review scope.
+Preserve older-head comments and source evidence. Validate them against
+current code. Older CI results do not prove current-head status.
 
-## 8. Finish
+The implementer reads each cited requirement's MUST and MUST NOT rows and
+exact waiver IDs. It validates every item before changing behavior:
 
-1. **Final verification.** A fresh reviewer checks the whole change and every
-   requirement ID on the final commit of the top PR: one row per ID with the
-   commit, the test or command, and its result. Give it the logged MINOR
-   findings to triage. The implementer's claims do not count. This may run
-   while CI runs. Send all valid findings to the owning lane's implementer in
-   one message, then one scoped re-check; findings still open after that go to the user.
-   Any later push invalidates the rows its diff can affect; run them again on
-   the new commit. The run is complete only when every row is PASS and CI is
-   green, both on the same final commit. An UNVERIFIED row is a failure.
-2. **Execution notes.** Append to the plan's `Execution notes` section, in
-   short bullets:
-   - Deviations: what changed from the plan, and why.
-   - Issues found: defects, flaky tests, and review findings that matter later.
-   - Repository stumbling blocks: commands, tools, and environment problems
-     that cost time, with the fix.
-   Update `Spec changes` if it changed.
-3. **Clean up.** Stop live sessions. Then remove the worktrees you made
-   that section 6 did not remove yet, the same way. Delete temporary files.
-4. **Report** to the user: PRs and their state, the requirement matrix (counts,
-   and every failure), deviations, model substitutions, and open items.
-5. **No automatic retro.** Do not start `session-retro`. The user runs it
-   when they want one. Keep the run directory, which it reads.
+- **DEFECT:** establish the trigger, faulty path, and result. Repair it and
+  check related paths for the same cause. Blocking defects prevent readiness.
+- **NOT A DEFECT:** supply a concrete trace or reproduction. For a defect
+  already repaired, give the repair commit and proof instead.
+- **OWNER:** an unresolved scope, contract, design, or waiver decision.
+  Send evidence and the exact decision to the orchestrator. Keep it open.
+- **BASE or ENV:** establish the actual cause and baseline or environment
+  evidence. A required failing check still prevents readiness.
+- **BLOCKED:** record missing proof or failed access. Keep it open.
+
+An item cannot waive a requirement without the needed owner approval. Record
+approved decisions in the owning spec or repository equivalent.
+
+### Repair with proofs and track deferred closure
+
+Start accepted repairs promptly. Group ready related items only when that
+will not delay repair. Run the useful reproduction or regression check and
+fast affected checks. Do not run full repository CI suites as local checks.
+Record actual commits and raw results. Format and compile alone do not prove
+a runtime repair. Missing or failed closure proof leaves the item unhandled.
+
+Flag changes to security or authorization, ownership, cancellation,
+concurrency, a public API, stored data formats, shared contracts, substantial
+new behavior, and repairs without adequate executable closure. Keep named
+pending review scopes. Do not dispatch a reviewer during the CI loop.
+
+Push repaired code after fast checks. Do not wait for slow CI or future
+comments to push it. Use one push owner for a shared stack. Lane implementers
+supply commits and replies; they do not edit another lane or switch branches.
+New heads need new required CI and Macroscope results.
+
+Reply with `🤖 ` and evidence. Resolve a repaired thread only after its named
+closure proof passes and any required independent scoped review passes.
+A thread waiting solely for deferred review remains open. Other slow checks
+still gate readiness; their pending state need not block that thread's
+closure. Leave questions, disagreements, and owner decisions open.
+
+Before posting or resolving, verify the PR head and last comment version
+against the validated item. GitHub has no compare-and-swap parameter for
+thread resolution. These are best-effort pre-mutation checks, not atomic
+closure. Leave newer or uncertain items open and collect them again.
+
+### Assess divergence only after checks finish
+
+Wait until all current-head CI and Macroscope checks finish
+successfully and all available feedback is handled with evidence. Here,
+**handled** means validated, dispositioned, and repaired with available
+proofs. Identified threads may remain open solely for a deferred independent
+review. This exception does not cover owner decisions, blocking defects,
+missing proof, incomplete sources, or unhandled new comments. Refresh the
+head and sources before applying the gate. Do not hide new feedback.
+
+Compare the current candidate with the first reviewed candidate, including
+repairs to initial findings. Assess the
+accumulated behavior and risk changes, proof quality, and pending closure
+flags. Record SECOND REVIEW REQUIRED or SECOND REVIEW SKIPPED, the reason,
+commits, evidence, and scope. Do not use line count as the trigger. Security
+or authorization, ownership, cancellation, concurrency, public API, stored
+data format, shared contract, substantial new behavior, or inadequate
+executable closure can require a second adversarial review. Small repairs
+that preserve contracts and have useful proofs can skip it. A required
+independent closure flag cannot be skipped without an approved disposition.
+
+When needed, give the reviewer the first reviewed and current candidates,
+requirements, risk changes, finding IDs, reproductions, and raw proofs. Review
+the changed behavior and related regression paths. Broaden the scope only
+when the accumulated change needs it. Do not automatically repeat the whole
+review after every push.
+
+A second-review finding goes to the implementer and returns the PR to the CI
+loop. After repair, finish new current-head checks and handle new feedback
+before a needed scoped recheck. Preserve the original review baseline and
+recheck only the affected scope. When the review passes, close eligible
+threads, refresh sources, and check final readiness.
+
+## 6. Keep sessions healthy
+
+- Record each session's ID, worktree, owner, and state when it starts.
+- Use event waits bounded by the host limit, at most 60 seconds per call.
+  Check live sessions and their worktrees after each stretch. Silence alone
+  is not proof of progress.
+- A turn is finished when the platform says it ended, its final report
+  exists, and its reported commits are in git. In Codex, finish all commands
+  before ending the turn. If the host cannot wait for remote CI, record
+  PENDING and give a resumable handoff. Do not claim readiness. In Claude Code, a lane may end a turn for its own
+  background command and resume on completion; do not redispatch its task.
+- Treat no new event for 20 minutes, with no running command, as a stall.
+  A live build or test gets three times that interval before recovery.
+- Recover by stopping leftover work and resuming the same session. Ask it to
+  check status and recent commits, read its current task, and continue without
+  repeating committed work. After two failed resumes, replace it with a
+  handoff. Preserve uncommitted edits.
+- Switch an unavailable model using `model-choice`. Restore the planned model
+  when available, subject to the review scope and clean-context rules.
+- Restart required helpers after a restart or disk-full error. Give waiters
+  total timeouts and bound each API call to 60 seconds with a supported
+  timeout tool or command timeout. Stop an old
+  waiter before starting another. Back off on transient tool failures.
+- Check the worktree volume after each wait. Below 15% free space, remove
+  finished worktrees before the next build. Release their services first.
+  A pending repair, proof, or CI result is unfinished work. Never remove a
+  worktree used as a live session's directory. Stop its sessions first.
+- When a person must decide, record the question and end the turn. Do not
+  poll for that person.
+
+## 7. Escalate exceptions and improve the process
+
+Use `model-choice` for repeated failed repair attempts on the same cause.
+Count attempts by their check results, not reviewer turns. Repeated failures
+need a cause analysis and a different approach, not equivalent pushes.
+Record a recurring cause and the workflow or brief change that prevents it.
+
+The implementer escalates unclear requirements, disputed findings it cannot
+settle with evidence, missing proof, and work outside its lane. The
+orchestrator assigns the owning lane or coordinates a contract decision. It
+does not add a reviewer triage pass for all CI comments.
+
+Ask the user when the needed action is outside existing authorization or the
+approved plan cannot be met. Keep working on independent tasks. An unresolved
+or deferred blocking finding is an open item, not a passing result.
+
+## 8. Finish with evidence
+
+Check readiness from recorded evidence after the conditional review decision:
+
+1. Every PR has its first pre-submission review and repaired candidate
+   recorded. Initial blocking findings are closed. The post-CI divergence
+   decision is recorded. Any required second review and scoped recheck have
+   passed, and review-dependent threads are closed with their named proofs.
+2. Every requirement has an executed proof with its command, result, output
+   path, and final candidate commit. Inspect command or CI evidence, not a
+   summary claim. If a proof is missing or stale, run it once on the final
+   candidate, using a chore for a long run. Do not repeat evidence already
+   complete on that commit. FAIL and UNVERIFIED prevent completion.
+3. All required CI checks are green on each PR's current head. Approvals and
+   addressed feedback are present, and no merge conflict remains. A required
+   pending check, an earlier green head, or a missing approval is not ready.
+
+Each PR needs its own proofs. For a stacked plan, also verify the combined
+requirements on the final commit of the top PR. A later push invalidates
+affected rows; refresh them on the new commit. Do not relabel an earlier run
+with the new SHA. Unaffected rows remain historical evidence until the final
+candidate check confirms the needed results. CI can provide named proofs when
+its output establishes those requirements on that candidate.
+
+After a rebase, run CI on the new head. Rerunning an old merge commit does
+not include a base-branch fix. Rebase and push when the fix is on the base.
+Do not merge automatically.
+
+Append deviations, significant defects, process corrections, and environment
+problems to the plan's Execution notes. Update Spec changes when needed.
+Stop live sessions before removing finished worktrees and temporary files.
+Report PR states, proof counts and failures, deviations, model substitutions,
+and open items. Keep the run directory. Run `session-retro` only on request.
 
 ## Token discipline
 
-Your own context is the largest cost in a long run: every turn re-reads it.
-
-- Pass Ref IDs, section references, paths, and commit IDs, not document
-  contents. Subagents read Ref sections and the briefs directly.
-- Reports go to files. Final messages stay under 1,500 characters. Read a full
-  report only when the short one leaves a decision open.
-- Read `git log --stat` and `git diff --stat`, not whole diffs and logs. Read
-  code only to rule on a finding you cannot judge from the report.
-- Read the full approved plan and design once per implementer session.
-  For Ref documents, use direct section reads thereafter. Send references
-  to changed sections, not document copies.
-- Keep implementers alive across tasks. Reuse reviewers only within the
-  boundaries in section 3.
-- Run short, known commands yourself. Send long or noisy ones, and test runs,
-  to a chore session.
-- Let your context compact when it fills. Write the state to the run log first
-  at a phase boundary, so a compacted you continues from the log.
+- Pass IDs, section references, paths, and commits instead of copied context.
+- Keep one implementer across related tasks, repairs, and CI feedback.
+- Use scripts for collection and give evidence paths directly to implementers.
+- Keep raw logs out of the orchestrator's context. Read full reports only for
+  unresolved decisions. Record compact findings instead of full reviews.
+- Run one broad review before submission. Assess later review only after CI
+  and feedback settle. Spend it on the accumulated changed risk and scope.
+- Let context compact at a phase boundary after writing the run state.

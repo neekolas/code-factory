@@ -17,7 +17,8 @@ This skill ends when the user approves the plan. `executing-plans` runs it.
   `CLAUDE.md`). If the repository has specs, read its spec format and the specs
   that own the area. In libxmtp that is `docs/specs/SPEC-spec-format.md` and
   the spec that `docs/specs/README.md` names.
-- Send broad reads to a subagent and keep its conclusions, not the files.
+- Use a subagent for broad reads when agent tools are available. Otherwise
+  make bounded reads in this session. Keep conclusions and source references.
 - Ask the user one question at a time, and only when the answer changes the
   plan and the code cannot answer it.
 - When a choice has real trade-offs, give two or three approaches with your
@@ -25,8 +26,10 @@ This skill ends when the user approves the plan. `executing-plans` runs it.
 
 ## 2. Write
 
-Put the plan in Ref when the session has Ref (Claude Code through the Ref
-plugin, Codex through the `Plans` MCP server) and the user uses it. Otherwise
+Follow `working-with-ref` when the user asks for Ref or project rules
+require it. This plugin bundles the Plans MCP endpoint; discover the
+connected tools in the current host. Ref access is required in that case.
+Otherwise
 write `docs/plans/YYYY-MM-DD-<slug>.md`, or the path the user names. The format
 is the same in both places.
 
@@ -115,6 +118,9 @@ Include code only where it is important. Most code is not. Show:
   implementer session runs a lane, across tasks and across PRs. Lanes run in
   parallel only when they share no files and no contract that is still
   changing. Say why each parallel pair is disjoint.
+- **Review gates.** Always finish a fresh review before first PR submission.
+  After successful current-head CI and handled feedback, assess accumulated
+  risk for a conditional second review. Routine proven repairs can skip it.
 - **Risk.** Mark a task `frontier` when it needs the top model tier: security,
   concurrency, protocol state, or data migration.
 
@@ -180,12 +186,16 @@ review requests. Keep the other sections.
 
 ## 3. Adversarial review
 
+Use a fresh independent reviewer when the host supports one. If no such
+reviewer is available, finish the plan and name the review gap. Do not claim
+that another pass in the author's session is independent review.
+
 Every plan gets one clean-context review before the user sees the final
 version. A wrong line in a plan becomes many wrong lines of code, so this
 review has the highest return of any review.
 
-- **Reviewer:** the reviewer model from `model-choice`. It must be a different
-  model from the one that wrote the plan.
+- **Reviewer:** the reviewer model from `model-choice`, in a fresh session.
+  A different model is optional; independent context is required.
 - **Input:** the plan's Ref ID or existing file path and the repository path.
   A reviewer reads Ref directly; give it section references and check its
   Plans tool access. Include the absolute path to this plugin's audit-tests skill.
@@ -193,10 +203,13 @@ review has the highest return of any review.
 - **Output:** the reviewer's final message to you. Never put a review in Ref,
   a doc, an artifact, a PR comment, or a file. If the transport needs a file
   (`codex exec -o`), read it and delete it.
-- **Claude Code:** an `Agent` call with the reviewer model, or for a Codex
+- **Claude Code:** an `Agent` call with a suitable reviewer definition and
+  supported effort, or verified inherited effort. Record the actual effort.
+  For a Codex
   reviewer `codex-session.sh start ... read` from `executing-plans` (see its
   Claude Code file). A plan review runs no build, so `read` is enough.
-- **Codex:** `spawn_agent` with the reviewer model and `fork_turns: "none"`.
+- **Codex:** native agent tools when available, with clean context. See the
+  app and Cloud limits in `executing-plans/references/codex.md`.
 
 Prompt:
 
