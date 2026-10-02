@@ -246,8 +246,23 @@ scope prevent submission. A tracked independent closure need may remain
 for the deferred post-CI review when the blocking defect has proven repair.
 
 Then push and submit the PR with the repository's stack tool when authorized.
-Describe the behavior, requirements, verification, and known gaps. Do not
-paste the review report. The first review does not certify final readiness.
+Use the PR description rules below. Do not paste the review report.
+The first review does not certify final readiness.
+
+### Keep PR descriptions current
+
+Apply these rules during first submission, restacking, CI and `babysit-pr`
+repairs, and every description update. Describe the final problem, resulting
+behavior, relevant validation, and material limitations. Write for a reviewer
+who has no session context. Rewrite the description when the scope changes.
+
+Never append status updates, restack history, CI progress, review rounds, or
+execution logs. Keep history in `$RUN/log.md`, actionable review updates in
+PR comments, and current blockers in the working plan.
+
+Preserve tool-managed blocks, including Macroscope and native stack blocks,
+and any required footer. Keep stale check results, head history, and stack
+positions out of the human description. Tool-managed stack links may remain.
 
 ### Deliver all CI and Macroscope feedback directly
 
