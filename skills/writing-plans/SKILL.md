@@ -9,7 +9,8 @@ A plan says what will change, why, how each result is proven, and how the work
 splits into PRs and sessions. It does not say how to write the code. The
 implementer is a strong model: give it goals, limits, and proof.
 
-This skill ends when the user approves the plan. `executing-plans` runs it.
+This skill ends when the user approves the plan. Use `executing-plans` or
+`orchestrate-execution` only when the user explicitly invokes that skill.
 
 ## 1. Understand
 
@@ -265,5 +266,6 @@ rewrite, at most twice. Findings still open after that go into Open questions.
 
 Give the user the plan's link or path, a short summary of what the review
 changed, and the open questions. Then end your turn. Do not poll a review or
-approval tool in a loop; the user's reply starts the next turn. Approval lets
-`executing-plans` start, and approves the exact spec text in Spec changes.
+approval tool in a loop; the user's reply starts the next turn. Approval
+approves the exact spec text in Spec changes. It does not invoke an execution
+skill.

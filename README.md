@@ -1,6 +1,7 @@
 # Code Factory
 
-Code Factory is a plugin with seven skills and one review agent. It helps an
+Code Factory is a plugin with eight skills, six Codex agent presets, and one
+shared review agent. It helps an
 agent plan software changes, implement approved plans, review tests, and care
 for pull requests. Claude Code and Codex load it as a plugin. The package supports the
 Codex app, CLI, and Cloud through available host tools. OpenCode uses
@@ -10,13 +11,17 @@ links made by the install script.
 
 | Skill | Use |
 | --- | --- |
-| `model-choice` | Choose models for an orchestrated run. |
+| `model-choice` | Default models and named Codex agents for each work tier. |
 | `writing-plans` | Write a plan with requirements and proofs. |
 | `executing-plans` | Run an approved plan with pre-submission review and direct CI feedback. |
+| `orchestrate-execution` | Guide native orchestration with ten short rules. |
 | `session-retro` | Review a finished run and propose improvements. |
 | `working-with-ref` | Work with plans in Ref. |
 | `babysit-pr` | Collect and address one round of PR feedback. |
 | `audit-tests` | Find weak or duplicate tests. |
+
+`executing-plans` and `orchestrate-execution` require explicit user invocation.
+Plan approval alone does not invoke either skill.
 
 The `adversarial-reviewer` agent reviews a change with clean context. Its
 definition comes from one source for Claude Code and OpenCode.
@@ -27,6 +32,9 @@ Repository instructions and tools come first. Use scripts bundled with a
 skill only when the repository has no command for the job.
 
 ## Delivery flow
+
+The following flow applies to `executing-plans`. Use `orchestrate-execution`
+for a shorter set of guiding rules.
 
 One persistent implementer owns each lane across tasks and PR feedback.
 Always finish a fresh adversarial review after fast local checks and before
@@ -157,7 +165,7 @@ scripts/install-opencode.sh --uninstall
 
 | Path | Contents |
 | --- | --- |
-| `skills/` | Seven skills, with their references, scripts, and tests. |
+| `skills/` | Eight skills, with their references, scripts, and tests. |
 | `src/agents/` | Shared review agent definition. |
 | `agents/` | Generated Claude Code review agent. |
 | `opencode/agents/` | Generated OpenCode review agent. |
@@ -178,7 +186,7 @@ skills/babysit-pr/tests/test-check-pr.sh
 python3 skills/babysit-pr/tests/test_feedback_scripts.py
 skills/executing-plans/tests/test-codex-session.sh
 python3 skills/session-retro/tests/test_retro_mine.py
-for skill in skills/*; do npx --yes skills-ref@0.1.5 validate "$skill"; done
+python3 scripts/validate-skills.py
 python3 scripts/build-agents.py --check
 python3 scripts/check-versions.py
 claude plugin validate .
@@ -186,6 +194,9 @@ find . -type f -name '*.sh' -print0 | xargs -0 shellcheck -S warning
 shellcheck -S warning skills/executing-plans/tests/bin/codex
 shellcheck -S warning skills/babysit-pr/tests/bin/gh
 ```
+
+The skill validator checks Claude's `disable-model-invocation` flag, then
+validates the standard fields with `skills-ref` in temporary copies.
 
 For a manual check of the session script against the real Codex CLI, run
 `skills/executing-plans/tests/live-codex-session.sh`. This check needs a

@@ -1,4 +1,4 @@
 interface:
   display_name: "Choose agent models"
-  short_description: "Choose available models for each role"
-  default_prompt: "Use $model-choice to select available models for implementation, review, and optional chores."
+  short_description: "Default models and effort for each work tier"
+  default_prompt: "Use $model-choice for default models and effort levels for each work tier."

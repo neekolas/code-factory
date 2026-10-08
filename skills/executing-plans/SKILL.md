@@ -1,9 +1,13 @@
 ---
 name: executing-plans
-description: Run an approved plan with one implementer per lane, direct implementer handling of CI feedback, a required review before PR submission, conditional review after CI, and proof-based repair. Use for changes with several tasks. Supports Claude Code, the Codex app, CLI, and Cloud.
+description: Run an approved plan with persistent implementers, review before PR submission, and direct CI feedback. Use only when the user explicitly invokes executing-plans. Supports Claude Code, the Codex app, CLI, and Cloud.
+disable-model-invocation: true
 ---
 
 # Executing plans
+
+Use this skill only when the user explicitly invokes it. Plan approval alone
+does not invoke this skill.
 
 You are the orchestrator. You own delivery, dependencies, integration, and
 unresolved decisions. User instructions take precedence over this skill.

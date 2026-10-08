@@ -1,0 +1,5 @@
+name = "reviewer_standard"
+description = "Review standard code changes for defects."
+model = "gpt-6.1-sol"
+model_reasoning_effort = "xhigh"
+developer_instructions = "Review the assigned code for defects and support findings with evidence. Restore any temporary edits before you finish."

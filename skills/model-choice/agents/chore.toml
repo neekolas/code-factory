@@ -1,0 +1,5 @@
+name = "chore"
+description = "Run checks and bounded mechanical tasks."
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+developer_instructions = "Complete the assigned check or mechanical task and report the results."

@@ -34,10 +34,7 @@ jobs:
       - name: Test retro scripts
         run: python3 skills/session-retro/tests/test_retro_mine.py
       - name: Validate skills
-        run: |
-          for skill in skills/*; do
-            npx --yes skills-ref@0.1.5 validate "$skill"
-          done
+        run: python3 scripts/validate-skills.py
       - name: Check generated agents
         run: python3 scripts/build-agents.py --check
       - name: Check manifest versions

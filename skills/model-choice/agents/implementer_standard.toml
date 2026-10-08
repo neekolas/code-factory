@@ -1,0 +1,5 @@
+name = "implementer_standard"
+description = "Implement standard code changes and address feedback."
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
+developer_instructions = "Complete the assigned implementation task and verify the changed behavior. Address feedback with fixes or evidence."
