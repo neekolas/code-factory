@@ -226,7 +226,7 @@ def thread_node(tid, pr=7, resolved=False, bodies=(), head=P4, follow=True):
 def guarded(tid, body="🤖 Fixed.", action="reply", **extra):
     return {"id": tid, "action": action, "body": body, "expected_head": P4,
             "expected_last_comment_id": "c0", "expected_last_comment_updated_at": "t0",
-            "closure_passed": True, "scoped_review_required": True, "scoped_review_passed": True, **extra}
+            "closure_passed": True, **extra}
 
 
 MISSING = {"match": ["PullRequestReviewThread{", "id=PRRT_missing"], "stdout": {
@@ -427,8 +427,7 @@ def post_case(tmp, entries, rules):
 with tempfile.TemporaryDirectory() as tmp:
     for field, value in (("expected_head", "b" * 40), ("expected_last_comment_id", "old"),
                          ("expected_last_comment_updated_at", "old-time"),
-                         ("expected_last_comment_hash", "0" * 64), ("closure_passed", False),
-                         ("scoped_review_passed", False)):
+                         ("expected_last_comment_hash", "0" * 64), ("closure_passed", False)):
         entry = guarded("PRRT_a", action="reply+resolve", **{field: value})
         code, out, calls = post_case(tmp, [entry], [])
         check(f"post: stale or unproved {field} is refused", (1, []), (code, mutations(calls, "mutation")))

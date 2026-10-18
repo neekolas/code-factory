@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Stub of `codex exec` for tests.
+# FAKE_MODE: ok | slow | fail | failjson | abandon | hang | ignore_term | silent | orphan
+#   slow: a command runs for FAKE_SLOW_S seconds (default 3), then the turn completes.
+#   abandon: the turn completes while a command is still open.
+#   orphan: starts a command in its own process group, waits FAKE_SLOW_S, and exits
+#   without ending the turn; the command keeps running with FAKE_ORPHAN_MARK as its argument.
+# FAKE_ARGS_LOG gets one line of arguments per run; FAKE_PROMPT_LOG gets the prompt;
+# FAKE_WHO_LOG gets FAKE_WHO. FAKE_THREAD sets the thread id; FAKE_REPORT the final message.
+out=""; resume=0; args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  case ${args[$i]} in
+    -o) out=${args[$((i + 1))]} ;;
+    resume) resume=1 ;;
+    -m) echo "${args[$((i + 1))]}" >>"${FAKE_MODEL_LOG:-/dev/null}" ;;
+  esac
+done
+printf '%s\n' "$*" >>"${FAKE_ARGS_LOG:-/dev/null}"
+[ -z "${FAKE_WHO_LOG:-}" ] || echo "${FAKE_WHO:-stub}" >>"$FAKE_WHO_LOG"
+if [ -n "${FAKE_PROMPT_LOG:-}" ]; then cat >"$FAKE_PROMPT_LOG"; else cat >/dev/null; fi
+mode=${FAKE_MODE:-ok}
+[ "$mode" = silent ] && { sleep 30; exit 0; }   # hangs before its first event
+[ "$resume" = 1 ] || echo "{\"type\":\"thread.started\",\"thread_id\":\"${FAKE_THREAD:-stub-thread-1}\"}"
+echo '{"type":"turn.started"}'
+started() { echo '{"type":"item.started","item":{"id":"item_1","type":"command_execution","status":"in_progress"}}'; }
+finish() {
+  echo '{"type":"item.completed","item":{"id":"item_9","type":"agent_message","text":"ok"}}'
+  echo '{"type":"turn.completed","usage":{}}'
+  echo "${FAKE_REPORT:-report}" >"$out"
+}
+case $mode in
+  ok) finish ;;
+  slow) started; sleep "${FAKE_SLOW_S:-3}"
+        echo '{"type":"item.completed","item":{"id":"item_1","type":"command_execution","exit_code":0}}'
+        finish ;;
+  fail) echo '{"type":"error","message":"boom"}'; exit 1 ;;
+  failjson) echo '{"type":"turn.failed","error":{"message":"{\"type\":\"error\",\"status\":400,\"error\":{\"message\":\"The model is not supported\"}}"}}'
+        exit 1 ;;
+  abandon) started; finish ;;
+  hang) started; sleep 300 ;;
+  ignore_term) trap '' TERM; started; sleep 300 & wait; sleep 300 ;;
+  orphan) started
+        perl -e 'setpgrp(0, 0); sleep 300' "${FAKE_ORPHAN_MARK:-stub-orphan}" </dev/null >/dev/null 2>&1 &
+        sleep "${FAKE_SLOW_S:-3}"; exit 1 ;;
+esac

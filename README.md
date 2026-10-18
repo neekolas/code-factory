@@ -1,7 +1,7 @@
 # Code Factory
 
-Code Factory is a plugin with eight skills, six Codex agent presets, and one
-shared review agent. It helps an
+Code Factory is a plugin with ten skills, six Codex agent presets, and one
+review agent. It helps an
 agent plan software changes, implement approved plans, review tests, and care
 for pull requests. Claude Code and Codex load it as a plugin. The package supports the
 Codex app, CLI, and Cloud through available host tools. OpenCode uses
@@ -13,56 +13,42 @@ links made by the install script.
 | --- | --- |
 | `model-choice` | Default models and named Codex agents for each work tier. |
 | `writing-plans` | Write a plan with requirements and proofs. |
-| `executing-plans` | Run an approved plan with pre-submission review and direct CI feedback. |
-| `orchestrate-execution` | Guide native orchestration with ten short rules. |
+| `orchestrate-execution` | Guide native orchestration of implementation, review, and PR feedback. |
+| `adversarial-review` | Run one adversarial review pass on one commit. |
+| `calling-codex` | Run, watch, resume, and stop Codex CLI sessions from a non-Codex agent. |
+| `calling-claude` | Run and resume headless Claude Code from a non-Claude agent. |
 | `session-retro` | Review a finished run and propose improvements. |
 | `working-with-ref` | Work with plans in Ref. |
 | `babysit-pr` | Collect and address one round of PR feedback. |
 | `audit-tests` | Find weak or duplicate tests. |
 
-`executing-plans` and `orchestrate-execution` require explicit user invocation.
-Plan approval alone does not invoke either skill.
+`orchestrate-execution` requires explicit user invocation. Plan approval
+alone does not invoke it.
 
-The `adversarial-reviewer` agent reviews a change with clean context. Its
-definition comes from one source for Claude Code and OpenCode.
+The `review-finder` agent runs the finders of an `adversarial-review` pass.
+One source builds it for Claude Code and OpenCode. Codex plugins cannot ship
+agents, so Codex sessions pass the same role prompt by file path.
 
 ## Design principle
 
 Repository instructions and tools come first. Use scripts bundled with a
 skill only when the repository has no command for the job.
 
-## Delivery flow
+## Review flow
 
-The following flow applies to `executing-plans`. Use `orchestrate-execution`
-for a shorter set of guiding rules.
+`orchestrate-execution` runs one `adversarial-review` pass on each PR
+before its first push, and one more for each major or architectural change
+after that push. A coordinator on the reviewer model splits the change so
+each finder can read its part in full: one finder for a small change, one
+per area for a large one, plus a finder for contracts between areas. It
+tries to disprove each finding and writes `verified.md`. The PR's
+implementer reproduces each bug before fixing it, and fixes each finding or
+refutes it with evidence. A repository can guide reviews with a `REVIEW.md`
+file in any format; see [the formats](skills/adversarial-review/references/format.md).
 
-One persistent implementer owns each lane across tasks and PR feedback.
-Always finish a fresh adversarial review after fast local checks and before
-first PR submission. Repair initial blocking findings before submission.
-Record the reviewed candidate, repaired candidate, and closure proofs.
-Full repository suites run in CI; they are not local checks.
-
-Send all CI and Macroscope feedback directly to the implementer as it arrives.
-Do not wait for all checks or comments. Do not add reviewer triage or mid-loop
-repair reviews. Push ready repairs after fast checks and track risk changes.
-Only after current-head CI and Macroscope checks succeed and
-feedback is handled, assess accumulated behavior and risk changes from the
-first review. Record the decision and scope for a conditional second review.
-Small repairs that preserve contracts and have useful proofs can skip it.
-
-A thread that needs independent closure stays open until its named proof
-and scoped review pass. It can count as handled for the post-CI gate only
-when deferred review is its sole remaining closure step. Owner decisions,
-blocking defects, missing proof, and new unhandled comments still block it.
-A second-review finding returns to repair and CI before a needed scoped
-recheck. Final proofs, current-head CI, feedback closure, and required
-approvals gate readiness.
-
-A clean starting commit can use completed CI evidence for its baseline.
-Preflight runs new or one-off commands and checks that CI does not cover.
-It does not run every plan proof before implementation.
-
-See [the applied workflow and scenarios](docs/workflow-draft.md).
+Claude Code and Codex run their own models as native subagents. Models
+from the other provider run through `calling-codex` or `calling-claude`. A
+lane without an OS sandbox needs the user's approval.
 
 ## Install
 
@@ -151,7 +137,7 @@ cd code-factory
 scripts/install-opencode.sh
 ```
 
-The script links each skill and the review agent into
+The script links each skill and agent into
 `~/.config/opencode/`. You can set `OPENCODE_CONFIG_DIR` to use a different
 configuration directory. You can run the install command more than once.
 
@@ -165,8 +151,8 @@ scripts/install-opencode.sh --uninstall
 
 | Path | Contents |
 | --- | --- |
-| `skills/` | Eight skills, with their references, scripts, and tests. |
-| `src/agents/` | Shared review agent definition. |
+| `skills/` | Ten skills, with their references, scripts, and tests. |
+| `src/agents/` | Review agent definition. |
 | `agents/` | Generated Claude Code review agent. |
 | `opencode/agents/` | Generated OpenCode review agent. |
 | `scripts/` | Agent generator, version check, and OpenCode installer. |
@@ -184,26 +170,26 @@ Run these commands from the repository root:
 ```sh
 skills/babysit-pr/tests/test-check-pr.sh
 python3 skills/babysit-pr/tests/test_feedback_scripts.py
-skills/executing-plans/tests/test-codex-session.sh
+skills/calling-codex/tests/test-codex-session.sh
 python3 skills/session-retro/tests/test_retro_mine.py
 python3 scripts/validate-skills.py
 python3 scripts/build-agents.py --check
 python3 scripts/check-versions.py
 claude plugin validate .
 find . -type f -name '*.sh' -print0 | xargs -0 shellcheck -S warning
-shellcheck -S warning skills/executing-plans/tests/bin/codex
+shellcheck -S warning skills/calling-codex/tests/bin/codex
 shellcheck -S warning skills/babysit-pr/tests/bin/gh
 ```
 
 The skill validator checks Claude's `disable-model-invocation` flag, then
 validates the standard fields with `skills-ref` in temporary copies.
 
-For a manual check of the session script against the real Codex CLI, run
-`skills/executing-plans/tests/live-codex-session.sh`. This check needs a
-logged-in `codex` and is not part of CI.
+For a manual check against the real CLI, run
+`skills/calling-codex/tests/live-codex-session.sh`. It needs a logged-in
+`codex` and is not part of CI.
 
-After a change to the shared review agent or its prompt, run
-`python3 scripts/build-agents.py` to update both generated files.
+After a change to the finder role or its agent source, run
+`python3 scripts/build-agents.py` to update the generated agent files.
 
 ## License
 

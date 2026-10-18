@@ -31,6 +31,17 @@ link_one() {
   echo "linked $destination"
 }
 
+# Remove links into this repository whose targets no longer exist, such as a
+# removed agent.
+for link in "$config"/skills/* "$config"/agents/*; do
+  [[ -L $link ]] || continue
+  target=$(readlink "$link")
+  if [[ $target == "$repo"/* && ! -e $target ]]; then
+    rm -- "$link"
+    echo "removed stale $link"
+  fi
+done
+
 for source in "$repo"/skills/*; do
   [[ -d $source ]] || continue
   link_one "$source" "$config/skills/$(basename "$source")"

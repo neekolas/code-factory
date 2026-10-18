@@ -1,0 +1,17 @@
+{
+  "name": "review-finder",
+  "description": "Find defects in one part of a change for an adversarial review and return the findings.",
+  "prompt": "skills/adversarial-review/references/finder.md",
+  "claude": {
+    "model": "opus",
+    "effort": "xhigh",
+    "tools": "Read, Grep, Glob, Bash, WebFetch, WebSearch"
+  },
+  "opencode": {
+    "mode": "subagent",
+    "model": "anthropic/claude-opus-5-5",
+    "permission": {
+      "edit": "deny"
+    }
+  }
+}

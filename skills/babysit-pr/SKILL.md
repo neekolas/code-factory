@@ -13,7 +13,7 @@ the stack before closing the round. Delivery can start before collection
 finishes. Do not wait for other checks to finish.
 New feedback can join an active repair at a safe point. Items that arrive
 after its push, or cannot join safely, enter the next round. In an
-`executing-plans` run, that skill names the PR implementer and push owner.
+`orchestrate-execution` run, that skill names the PR implementer and push owner.
 Send all CI comments and review findings directly to the implementer. It
 validates findings and owns repairs. Use scripts for collection; a collector
 agent is optional. This skill defines one round, not the wait schedule.
@@ -35,10 +35,9 @@ or change host configuration without authorization.
   Preserve older-head feedback and source identity for validation. A pending
   or missing current-head check is not a pass. A snapshot that changes head
   during collection is STALE and cannot establish readiness.
-- Start each PR reply with `🤖 `. Resolve only after the named closure proof
-  and any required independent scoped review pass. Guard by the validated
-  head and last comment version. Leave newer or uncertain threads, questions,
-  disagreements, and owner decisions open. GitHub provides no atomic
+- Start each PR reply with `🤖 `. Resolve only after the named closure proof.
+  Guard by the validated head and last comment version. Leave newer or
+  uncertain threads, questions, disagreements, and owner decisions open. GitHub provides no atomic
   compare-and-swap guard for thread resolution.
 - Find a thread only by its ID. Never select threads to reply to or resolve by
   matching words in their text.
@@ -102,9 +101,10 @@ else                                                           → STANDALONE
    The collector writes `pr-N.json` atomically after each source and flushes
    `SOURCE N threads|reviews|comments|checks READY|INCOMPLETE` updates.
    Deliver each available snapshot path to its implementer immediately.
-   Native agents use native messages. Active CLI sessions use the durable
-   inbox in `executing-plans/references/feedback-inbox.md`; resume idle lanes
-   with that path. Continue other sources and PRs without waiting for checks.
+   Native agents get native messages. A `calling-codex` or `calling-claude`
+   lane gets the snapshot path when its turn ends; resume an idle lane with
+   it. For an urgent change, stop the lane and resume it with the path. Continue other sources
+   and PRs without waiting for checks.
 
    The JSON records the observed `head`, nullable item `source_commit`,
    comment `updated_at`, `body_hash`, and `version_key`. Threads include
@@ -126,11 +126,9 @@ else                                                           → STANDALONE
    round does not repeat a reply.
 4. **Fix in order.** The owning implementer makes the repair. Close routine
    fixes with useful executable evidence and affected required checks. There
-   is no default reviewer triage or fix-check turn. In an `executing-plans`
-   run, track risk and required scoped closure flags. Do not dispatch a
-   reviewer during CI or Macroscope repair loops. Assess accumulated behavior
-   and risk changes only after successful current-head checks and handled
-   feedback. A high-risk report does not bypass that ordering.
+   is no default reviewer triage or fix-check turn. In an
+   `orchestrate-execution` run, only a major or architectural repair gets an
+   adversarial review pass.
    Resolve the lowest merge conflict first. Then apply all
    verified code fixes from bottom to top. After each lower-branch change,
    restack and check higher branches again. Run fast, cheap local checks,
@@ -142,25 +140,21 @@ else                                                           → STANDALONE
    Required checks gate readiness. Investigate optional failures and report
    any that remain.
 5. **Close the round.** Reply with fix commits, named closure proof, or
-   disposition evidence. Resolve a thread only after its named proof and any
-   required independent scoped review pass. A repaired thread can stay open
-   solely for the deferred review. Other slow checks still gate readiness.
-   Leave owner decisions and disputed items open. Use repository tools first.
+   disposition evidence. Resolve a thread only after its named proof. Slow
+   checks still gate readiness. Leave owner decisions and disputed items open. Use repository tools first.
    Otherwise use `scripts/post-replies.py <owner/repo> <pr> <file>` with JSON
    Lines. Each line needs `id`, `action`, `body`, `expected_head`,
    `expected_last_comment_id`, and either `expected_last_comment_updated_at`
    or `expected_last_comment_hash`. Example:
 
    ```json
-   {"id":"<thread ID>","action":"reply+resolve","body":"🤖 Fixed in <sha>. Closure: <named test> PASS.","expected_head":"<validated PR head>","expected_last_comment_id":"<comment ID>","expected_last_comment_hash":"<validated body hash>","closure_passed":true,"scoped_review_required":true,"scoped_review_passed":true}
+   {"id":"<thread ID>","action":"reply+resolve","body":"🤖 Fixed in <sha>. Closure: <named test> PASS.","expected_head":"<validated PR head>","expected_last_comment_id":"<comment ID>","expected_last_comment_hash":"<validated body hash>","closure_passed":true}
    ```
 
    Use `action: "reply"` when resolution is not authorized or closure is
-   pending. Resolution needs `closure_passed: true` and an explicit
-   `scoped_review_required` boolean. When it is true, also require
-   `scoped_review_passed: true`. Do not assert a pass without evidence. Legacy
-   unguarded pipe entries are not supported. Read the dry run, then add
-   `--post` when authorized. Optional `--git-dir <clone>` maps local commit
+   pending. Resolution needs `closure_passed: true`. Do not assert a pass
+   without evidence. Legacy unguarded pipe entries are not supported. Read
+   the dry run, then add `--post` when authorized. Optional `--git-dir <clone>` maps local commit
    references to pushed commits when the helper supports that mapping.
 
    The poster checks the head and last comment before reply, after reply,
@@ -177,17 +171,9 @@ not keep making equivalent pushes.
 
 ## Exit condition
 
-For an `executing-plans` run, first finish the pre-submission review gate.
-During CI loops, feedback goes directly to the implementer with no reviewer
-triage or repair review. After all current-head CI and Macroscope
-checks succeed, all sources are complete, and feedback is handled, record
-the accumulated divergence decision. A required second review can then run.
-A finding returns to repair and CI before a needed scoped recheck.
-
-For that post-CI gate, handled means validated, dispositioned, and repaired
-with available proof. Name any threads open solely for deferred review.
-Owner decisions, blocking defects, missing proof, incomplete sources, and
-unhandled new comments cannot use this exception. They prevent the gate.
+For an `orchestrate-execution` run, each major or architectural change after
+the first push also needs its adversarial review pass, with the findings
+fixed or refuted.
 
 Every PR must have no merge conflict, all required checks passing on its
 current head, all feedback addressed, and all required approvals. A reply to

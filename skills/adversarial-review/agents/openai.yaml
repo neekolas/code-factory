@@ -1,0 +1,6 @@
+interface:
+  display_name: "Adversarial review"
+  short_description: "Run one adversarial review pass on a commit"
+  default_prompt: "Use $code-factory:adversarial-review to review this branch against its base and write verified.md."
+policy:
+  allow_implicit_invocation: true

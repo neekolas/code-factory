@@ -23,14 +23,14 @@ jobs:
       - name: Lint shell files
         run: |
           find . -type f -name '*.sh' -print0 | xargs -0 shellcheck -S warning
-          shellcheck -S warning skills/executing-plans/tests/bin/codex
           shellcheck -S warning skills/babysit-pr/tests/bin/gh
+          shellcheck -S warning skills/calling-codex/tests/bin/codex
       - name: Test PR check snapshot
         run: skills/babysit-pr/tests/test-check-pr.sh
       - name: Test PR feedback scripts
         run: python3 skills/babysit-pr/tests/test_feedback_scripts.py
-      - name: Test Codex session script
-        run: skills/executing-plans/tests/test-codex-session.sh
+      - name: Test calling-codex session script
+        run: skills/calling-codex/tests/test-codex-session.sh
       - name: Test retro scripts
         run: python3 skills/session-retro/tests/test_retro_mine.py
       - name: Validate skills

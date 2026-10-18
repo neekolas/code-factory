@@ -33,7 +33,7 @@ Do not write a Ref for:
 - An adversarial review of a spec or code. Give the review in the session
   that asked for it.
 - Subagent prompts, handoffs, or reports. Use files in the run directory
-  (see the writable run path in `executing-plans`).
+  (see the run root in `orchestrate-execution`).
 - Investigations, summaries, or records of finished work that nobody asked to
   keep in Ref. Answer in chat.
 - An "artifact" or a "doc" without a request for Ref. Use the user's chosen

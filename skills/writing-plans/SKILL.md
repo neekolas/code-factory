@@ -9,8 +9,8 @@ A plan says what will change, why, how each result is proven, and how the work
 splits into PRs and sessions. It does not say how to write the code. The
 implementer is a strong model: give it goals, limits, and proof.
 
-This skill ends when the user approves the plan. Use `executing-plans` or
-`orchestrate-execution` only when the user explicitly invokes that skill.
+This skill ends when the user approves the plan. Use `orchestrate-execution`
+only when the user explicitly invokes it.
 
 ## 1. Understand
 
@@ -119,9 +119,6 @@ Include code only where it is important. Most code is not. Show:
   implementer session runs a lane, across tasks and across PRs. Lanes run in
   parallel only when they share no files and no contract that is still
   changing. Say why each parallel pair is disjoint.
-- **Review gates.** Always finish a fresh review before first PR submission.
-  After successful current-head CI and handled feedback, assess accumulated
-  risk for a conditional second review. Routine proven repairs can skip it.
 - **Risk.** Mark a task `frontier` when it needs the top model tier: security,
   concurrency, protocol state, or data migration.
 
@@ -179,7 +176,7 @@ Implementer: <model, effort>. Reviewer: <model, effort>. Chore: <model, effort>.
 Or: "Ask at execution".
 
 ## Execution notes
-<Added by executing-plans: deviations, issues found, repository stumbling blocks.>
+<Added during execution: deviations, issues found, repository stumbling blocks.>
 ```
 
 In Ref, follow `working-with-ref` for the title line, task headers, and
@@ -204,13 +201,13 @@ review has the highest return of any review.
 - **Output:** the reviewer's final message to you. Never put a review in Ref,
   a doc, an artifact, a PR comment, or a file. If the transport needs a file
   (`codex exec -o`), read it and delete it.
-- **Claude Code:** an `Agent` call with a suitable reviewer definition and
-  supported effort, or verified inherited effort. Record the actual effort.
-  For a Codex
-  reviewer `codex-session.sh start ... read` from `executing-plans` (see its
-  Claude Code file). A plan review runs no build, so `read` is enough.
-- **Codex:** native agent tools when available, with clean context. See the
-  app and Cloud limits in `executing-plans/references/codex.md`.
+- **Claude Code:** an `Agent` call with `subagent_type: "general-purpose"`
+  that sets `model` and `effort` to the reviewer tier from `model-choice`
+  (Opus, `xhigh`). Record the actual effort. For a Codex reviewer, start a
+  `read` session with `calling-codex`; a plan review runs no build.
+- **Codex:** native agent tools when available, with clean context
+  (`fork_turns: "none"`, and both `model` and `reasoning_effort`). Without
+  agent tools, finish the plan and name the review gap.
 
 Prompt:
 

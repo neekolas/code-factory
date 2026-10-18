@@ -7,10 +7,8 @@ FILE is JSON Lines. Each object requires:
   id, action (reply or reply+resolve), body, expected_head,
   expected_last_comment_id, and expected_last_comment_updated_at
   or expected_last_comment_hash (SHA-256 of the exact comment body).
-Resolution also requires closure_passed=true and scoped_review_required.
-When scoped_review_required=true, scoped_review_passed must be true.
-The caller sets these fields only after the named closure proof and required
-review pass. A push can occur before these checks pass.
+Resolution also requires closure_passed=true. The caller sets it only after
+the named closure proof passes.
 
 All entries are checked before any mutation. Each entry is checked again
 before a reply, after a reply, and before resolution. These reads are best
@@ -161,10 +159,8 @@ def parse(path):
                 errors.append(f"line {n}: a last comment timestamp or SHA-256 hash is required")
                 continue
             resolve = action == "reply+resolve"
-            if resolve and (entry.get("closure_passed") is not True
-                            or not isinstance(entry.get("scoped_review_required"), bool)
-                            or (entry["scoped_review_required"] and entry.get("scoped_review_passed") is not True)):
-                errors.append(f"line {n}: resolution requires passed closure proof and required scoped review")
+            if resolve and entry.get("closure_passed") is not True:
+                errors.append(f"line {n}: resolution requires passed closure proof")
                 continue
             entry.update({"line": n, "resolve": resolve})
             entries.append(entry)

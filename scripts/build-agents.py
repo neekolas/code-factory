@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-"""Build platform agent files from one definition and the review prompt."""
+"""Build platform agent files from the definitions in src/agents."""
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "src/agents/adversarial-reviewer.json"
-PROMPT = ROOT / "skills/executing-plans/references/review-prompt.md"
+SOURCES = ROOT / "src/agents"
 TARGETS = {
-    "claude": ROOT / "agents/adversarial-reviewer.md",
-    "opencode": ROOT / "opencode/agents/adversarial-reviewer.md",
+    "claude": ROOT / "agents",
+    "opencode": ROOT / "opencode/agents",
 }
 
 
@@ -31,41 +29,52 @@ def frontmatter(data, platform):
     return "\n".join(lines)
 
 
-def build(data, platform, prompt):
-    match = re.search(r"^```text\n(.*?)^```\s*$", prompt, re.MULTILINE | re.DOTALL)
-    if match is None:
-        raise ValueError(f"no text fence in {PROMPT}")
-    tail = prompt[match.end() :].strip()
-    if not tail.startswith("Severity:") or "\n\nScope:" not in tail:
-        raise ValueError(f"missing Severity or Scope paragraphs in {PROMPT}")
-    preamble = (
-        "You have clean context. Return the review only to the caller. "
-        "Never write the review to Ref, a document, or a file."
-    )
-    return f"{frontmatter(data, platform)}\n\n{preamble}\n\n{match.group(1).strip()}\n\n{tail}\n"
+def build(data, platform):
+    prompt = (ROOT / data["prompt"]).read_text(encoding="utf-8").strip()
+    return f"{frontmatter(data, platform)}\n\n{prompt}\n"
+
+
+def expected_files():
+    expected = {}
+    for source in sorted(SOURCES.glob("*.json")):
+        data = json.loads(source.read_text(encoding="utf-8"))
+        for platform, folder in TARGETS.items():
+            expected[folder / f"{data['name']}.md"] = build(data, platform)
+    return expected
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="check generated files")
     args = parser.parse_args()
-    data = json.loads(SOURCE.read_text(encoding="utf-8"))
-    prompt = PROMPT.read_text(encoding="utf-8")
-    stale = []
-    for platform, target in TARGETS.items():
-        expected = build(data, platform, prompt)
-        if args.check:
-            if not target.is_file() or target.read_text(encoding="utf-8") != expected:
-                stale.append(str(target.relative_to(ROOT)))
-        else:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(expected, encoding="utf-8")
-            print(f"wrote {target.relative_to(ROOT)}")
-    if stale:
-        print("stale generated agent files: " + ", ".join(stale), file=sys.stderr)
-        return 1
+    expected = expected_files()
+    orphans = [
+        path
+        for folder in TARGETS.values()
+        for path in sorted(folder.glob("*.md"))
+        if path not in expected
+    ]
     if args.check:
+        stale = [
+            path
+            for path, text in expected.items()
+            if not path.is_file() or path.read_text(encoding="utf-8") != text
+        ]
+        problems = [f"stale: {path.relative_to(ROOT)}" for path in stale]
+        problems += [f"no source: {path.relative_to(ROOT)}" for path in orphans]
+        if problems:
+            print("generated agent files are not current:", file=sys.stderr)
+            for problem in problems:
+                print(f"  {problem}", file=sys.stderr)
+            return 1
         print("generated agent files are current")
+        return 0
+    for path, text in expected.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        print(f"wrote {path.relative_to(ROOT)}")
+    for path in orphans:
+        print(f"no source, not removed: {path.relative_to(ROOT)}", file=sys.stderr)
     return 0
 
 

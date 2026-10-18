@@ -30,8 +30,8 @@ on the user.
 ## 1. Find the run, then gate
 
 Use the run directory the user names, or the newest one for this repository
-in the run root recorded by `executing-plans`. Check `~/.agents/runs/`
-only when that local path exists. Its `log.md` gives the orchestrator's session ID and CLI,
+in the run root that `orchestrate-execution` defines (`~/.agents/runs/`,
+else `$TMPDIR/agents-runs/`). Check each only when it exists. Its `log.md` gives the orchestrator's session ID and CLI,
 the start time, and the worktrees. `$RUN` below is that directory. The gate is
 one script and no model call:
 
@@ -62,7 +62,7 @@ wrong, time the user had to prod the orchestrator. A long, clean run can trip
 the gate on an expected compaction. When you stop here, tell the user in one
 line why the full retro is not worth its cost. "The disk filled" is always
 worth a retro: check the run log for worktrees that stayed after their PRs
-merged. That cause is in `executing-plans`, so it is a plugin finding.
+merged. That cause is in `orchestrate-execution`, so it is a plugin finding.
 
 ## 2. Analyse
 
@@ -71,8 +71,8 @@ python3 "$S/retro-mine.py" --repo . <same session arguments> > "$RUN/retro/retro
 python3 "$S/retro-ledger.py" list --repo "$(git remote get-url origin)" --open > "$RUN/retro/ledger.json"
 ```
 
-When agent tools are available, start one analysis subagent: workhorse tier
-from `model-choice`, clean context. Otherwise analyse in the current session. It may read files and run read-only `git` and `gh` commands. Give it
+When agent tools are available, start one analysis subagent: Reviewer (standard)
+tier from `model-choice`, clean context. Otherwise analyse in the current session. It may read files and run read-only `git` and `gh` commands. Give it
 the repository path, the run's PR numbers, `$RUN/retro/retro.json`,
 `$RUN/retro/ledger.json`, the run log, and the plan's `Execution notes`:
 
@@ -189,16 +189,15 @@ all acknowledged or already fixed)."
 
 ## 4. Act on the reply
 
-- **`fix`**: start one implementer (workhorse tier) in a new worktree from the
-  default branch, on a branch `retro/<date>-<slug>`. It fetches first and
+- **`fix`**: start one Implementer (standard) from `model-choice` in a new
+  worktree from the default branch, on a branch `retro/<date>-<slug>`. It fetches first and
   repeats the landed-fix search. It applies the approved text exactly; any
   difference is listed in the PR. One PR for all fixes in one reply, one
   commit per proposal. It runs the repository's lint for changed files and
-  tests for any changed script or check. Every candidate gets a fresh adversarial review after fast checks and
-  before first PR submission. Close its initial blocking findings with proof.
-  Route later CI feedback directly to the same implementer. Assess a second
-  review only after successful current-head checks and handled feedback,
-  using accumulated risk and behavior changes. The PR description has, per proposal, the evidence
+  tests for any changed script or check. Run one
+  `adversarial-review` pass before the first push and close its CRITICAL and
+  MAJOR findings. Route later CI feedback directly to the same implementer.
+  The PR description has, per proposal, the evidence
   (scrubbed), the estimate, and the before and after. Never merge a retro PR.
 - **`issue`**: one issue per proposal in the repository's tracker (`gh issue
   create` by default) with the problem, the scrubbed evidence, the estimate,
