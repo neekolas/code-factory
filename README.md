@@ -1,6 +1,6 @@
 # Code Factory
 
-Code Factory is a plugin with ten skills, six Codex agent presets, and one
+Code Factory is a plugin with coding skills, six Codex agent presets, and one
 review agent. It helps an
 agent plan software changes, implement approved plans, review tests, and care
 for pull requests. Claude Code and Codex load it as a plugin. The package supports the
@@ -11,6 +11,7 @@ links made by the install script.
 
 | Skill | Use |
 | --- | --- |
+| `boat` | Run, monitor, and steer coding tasks on Boat VMs through a local gateway. |
 | `model-choice` | Default models and named Codex agents for each work tier. |
 | `writing-plans` | Write a plan with requirements and proofs. |
 | `orchestrate-execution` | Guide native orchestration of implementation, review, and PR feedback. |
@@ -151,7 +152,7 @@ scripts/install-opencode.sh --uninstall
 
 | Path | Contents |
 | --- | --- |
-| `skills/` | Ten skills, with their references, scripts, and tests. |
+| `skills/` | Skills, with their references, scripts, and tests. |
 | `src/agents/` | Review agent definition. |
 | `agents/` | Generated Claude Code review agent. |
 | `opencode/agents/` | Generated OpenCode review agent. |
@@ -165,13 +166,14 @@ scripts/install-opencode.sh --uninstall
 
 ## Check the repository
 
-Run these commands from the repository root:
+Run these commands from the repository root. Use Python 3.11 or newer for the Python tests:
 
 ```sh
 skills/babysit-pr/tests/test-check-pr.sh
 python3 skills/babysit-pr/tests/test_feedback_scripts.py
 skills/calling-codex/tests/test-codex-session.sh
 python3 skills/session-retro/tests/test_retro_mine.py
+python3 -m unittest discover -s skills/boat/tests -v
 python3 scripts/validate-skills.py
 python3 scripts/build-agents.py --check
 python3 scripts/check-versions.py

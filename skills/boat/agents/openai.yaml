@@ -1,0 +1,4 @@
+interface:
+  display_name: "Boat"
+  short_description: "Run and steer coding tasks on Boat VMs"
+  default_prompt: "Use $code-factory:boat to run this coding task on a Boat VM and report its status and results."
