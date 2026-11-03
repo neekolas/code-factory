@@ -205,6 +205,14 @@ FAKE_ARGS_LOG="$tmp/args-e" "$S" resume "$run" a "$p" xhigh >/dev/null 2>&1
 FAKE_ARGS_LOG="$tmp/args-e" "$S" resume "$run" a "$p" >/dev/null 2>&1
 check "an effort given to resume is kept" model_reasoning_effort=xhigh "$(effort_of_last_run)"
 
+# --- Cyber access program
+: >"$tmp/args-cy"
+CODEX_SESSION_CYBER=daybreak_red FAKE_ARGS_LOG="$tmp/args-cy" FAKE_MODE=ok "$S" start "$run" cy "$repo" m low read "$p" >/dev/null 2>&1
+check "start passes the cyber program" yes "$(yesno grep -q -- '--cyber-access-program daybreak_red' <<<"$(tail -n 1 "$tmp/args-cy")")"
+FAKE_ARGS_LOG="$tmp/args-cy" FAKE_MODE=ok "$S" resume "$run" cy "$p" >/dev/null 2>&1
+check "resume passes the stored cyber program" yes "$(yesno grep -q -- '--cyber-access-program daybreak_red' <<<"$(tail -n 1 "$tmp/args-cy")")"
+check "a session without one passes none" no "$(yesno grep -q -- '--cyber-access-program' <<<"$(tail -n 1 "$tmp/args-e")")"
+
 # --- P74, P75 turn-scoped and bounded watch
 out=$(FAKE_MODE=ok "$S" start "$run" t "$repo" m low read "$p" 2>/dev/null)
 check "start prints turn 1 first" "turn 1" "$(head -n 1 <<<"$out")"

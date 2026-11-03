@@ -17,6 +17,7 @@ STOP_S=${CODEX_SESSION_STOP_S:-30}         # SIGTERM grace period before SIGKILL
 POLL_S=${CODEX_SESSION_POLL_S:-30}         # how often watch, start, and resume check the turn
 TRACK_S=${CODEX_SESSION_TRACK_S:-2}        # how often the runner records codex's processes
 STALL_S=1200                               # default stall limit in seconds
+CYBER=${CODEX_SESSION_CYBER:-}             # start: --cyber-access-program for every turn of the session
 CODEX_DIR=${CODEX_HOME:-$HOME/.codex}
 MARK_VAR=CODEX_SESSION_MARK                # every process codex starts inherits it
 
@@ -345,7 +346,7 @@ runner_fail() { printf 'error %s %s\n' "$1" "$2"; exit "$1"; }
 # its stdout and stderr are the caller's pipe; it then keeps that pipe open on
 # fd 4, so the caller sees EOF when the runner exits.
 runner() {
-  local op=$1 cwd model effort mode prompt codex thread='' n mark cpid tpid rc
+  local op=$1 cwd model effort mode prompt codex thread='' cyber=$CYBER n mark cpid tpid rc
   local -a args
   shift
   take_lock || runner_fail 2 "session $name is busy: its turn is still running, or another start or resume holds it"
@@ -362,7 +363,7 @@ runner() {
     [ -d "$cwd" ] || runner_fail 3 "session $name cannot resume: its directory $cwd is gone. Start a new session with a handoff."
     thread=$(thread_id)
     [ -n "$thread" ] || runner_fail 2 "no thread id for $name: codex never started this session; start a new session"
-    model=$(cat "$base.model"); mode=$(cat "$base.sandbox")
+    model=$(cat "$base.model"); mode=$(cat "$base.sandbox"); cyber=$(cat "$base.cyber" 2>/dev/null || true)
     [ -n "$effort" ] || effort=$(cat "$base.effort" 2>/dev/null || true)
     # A command from an earlier turn must not run next to the new one.
     stop_processes || runner_fail 1 "could not stop the processes left by an earlier turn of $name"
@@ -375,6 +376,7 @@ runner() {
   # From here on the session files change.
   if [ "$op" = start ]; then
     printf '%s\n' "$cwd" >"$base.cwd"; printf '%s\n' "$model" >"$base.model"; printf '%s\n' "$mode" >"$base.sandbox"
+    printf '%s\n' "$cyber" >"$base.cyber"
     printf 'cs-%s-%s-%s\n' "$(date +%s)" "$$" "$RANDOM" >"$base.mark"
   fi
   printf '%s\n' "$effort" >"$base.effort"
@@ -394,6 +396,8 @@ runner() {
   # Without -m and the effort, resume falls back to the configured defaults.
   args+=(--json -m "$model")
   [ -z "$effort" ] || args+=(-c "model_reasoning_effort=$effort")
+  # The program applies to one turn, so every resume passes it again.
+  [ -z "$cyber" ] || args+=(--cyber-access-program "$cyber")
   args+=("${sbx[@]}" -o "$base.last.md" -)
   # The prompt file is stdin; never an open pipe. codex leads its own process
   # group, and every process it starts inherits the session marker.

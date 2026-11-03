@@ -1,0 +1,6 @@
+interface:
+  display_name: "Security audit"
+  short_description: "Hunt, validate, and plan fixes for vulnerabilities"
+  default_prompt: "Use $code-factory:security-audit to audit this commit."
+policy:
+  allow_implicit_invocation: false

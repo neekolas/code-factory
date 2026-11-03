@@ -31,5 +31,7 @@ $S stop   <run-dir> <name>
   `codex queue`: it drops the message and still exits 0.
 - `read` for reviews, `write` for implementer lanes. `full` has no sandbox: use
   it only for a lane the user approved, and record the approval in the run log.
+- For a Cyber access program such as Daybreak, set
+  `CODEX_SESSION_CYBER=<program>` on `start`. Every resume passes it again.
 - After a restart, run `status` for every session in the run log before
   acting. Codex keeps running without your shell.

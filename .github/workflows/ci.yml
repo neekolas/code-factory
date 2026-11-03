@@ -33,6 +33,8 @@ jobs:
         run: skills/calling-codex/tests/test-codex-session.sh
       - name: Test retro scripts
         run: python3 skills/session-retro/tests/test_retro_mine.py
+      - name: Test Boat configuration
+        run: python3 -m unittest discover -s skills/boat/tests -v
       - name: Validate skills
         run: python3 scripts/validate-skills.py
       - name: Check generated agents
