@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ROOT / "src/agents"
 TARGETS = {
     "claude": ROOT / "agents",
+    "factory": ROOT / "droids",
     "opencode": ROOT / "opencode/agents",
 }
 
@@ -20,7 +21,9 @@ def frontmatter(data, platform):
     fields.update(data[platform])
     lines = ["---"]
     for key, value in fields.items():
-        if isinstance(value, dict):
+        if isinstance(value, list):
+            lines.append(f"{key}: {json.dumps(value)}")
+        elif isinstance(value, dict):
             lines.append(f"{key}:")
             lines.extend(f"  {child}: {setting}" for child, setting in value.items())
         else:

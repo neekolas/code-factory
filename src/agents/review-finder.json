@@ -13,5 +13,10 @@
     "permission": {
       "edit": "deny"
     }
+  },
+  "factory": {
+    "model": "inherit",
+    "tools": "read-only",
+    "mcpServers": []
   }
 }

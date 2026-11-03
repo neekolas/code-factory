@@ -3,7 +3,7 @@
 Code Factory is a plugin with twelve skills, six Codex agent presets, and one
 review agent. It helps an
 agent plan software changes, implement approved plans, review tests, and care
-for pull requests. Claude Code and Codex load it as a plugin. The package supports the
+for pull requests. Claude Code, Codex, and Factory Droid load it as a plugin. The package supports the
 Codex app, CLI, and Cloud through available host tools. OpenCode uses
 links made by the install script.
 
@@ -28,7 +28,7 @@ links made by the install script.
 alone does not invoke it.
 
 The `review-finder` agent runs the finders of an `adversarial-review` pass.
-One source builds it for Claude Code and OpenCode. Codex plugins cannot ship
+One source builds it for Claude Code, Factory Droid, and OpenCode. Codex plugins cannot ship
 agents, so Codex sessions pass the same role prompt by file path.
 
 ## Design principle
@@ -67,6 +67,31 @@ Remove it in the reverse order:
 claude plugin uninstall code-factory@code-factory
 claude plugin marketplace remove code-factory
 ```
+
+### Factory Droid
+
+```sh
+droid plugin marketplace add neekolas/code-factory
+droid plugin install code-factory@code-factory --scope user
+```
+
+Use `--scope project` to install for one project. Restart Droid after installing.
+The native Factory package includes all twelve skills, the `review-finder`
+droid, and the Plans MCP server. The review droid inherits the caller's model
+and uses Factory's read-only tool policy.
+
+Set `REF_API_KEY` before starting Droid to use Plans. Skills that call other
+providers need the corresponding Codex or Claude CLI and credentials. Boat
+needs its CLI and gateway setup; see the skill for details.
+
+Remove the plugin and marketplace:
+
+```sh
+droid plugin uninstall code-factory@code-factory --scope user
+droid plugin marketplace remove code-factory
+```
+
+See [Factory's plugin guide](https://docs.factory.com/harness/plugins).
 
 ### Codex
 
@@ -156,6 +181,8 @@ scripts/install-opencode.sh --uninstall
 | `skills/` | Skills, with their references, scripts, and tests. |
 | `src/agents/` | Review agent definition. |
 | `agents/` | Generated Claude Code review agent. |
+| `droids/` | Generated Factory review droid. |
+| `.factory-plugin/` | Factory plugin and marketplace manifests. |
 | `opencode/agents/` | Generated OpenCode review agent. |
 | `scripts/` | Agent generator, version check, and OpenCode installer. |
 | `.claude-plugin/` | Claude Code plugin and marketplace manifests. |

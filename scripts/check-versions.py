@@ -11,22 +11,27 @@ MANIFESTS = (
     ROOT / "plugin.json",
     ROOT / ".claude-plugin/plugin.json",
     ROOT / ".claude-plugin/marketplace.json",
+    ROOT / ".factory-plugin/plugin.json",
+    ROOT / ".factory-plugin/marketplace.json",
 )
 
 
 def main():
     try:
-        root, claude, marketplace = (
-            json.loads(path.read_text(encoding="utf-8")) for path in MANIFESTS
-        )
-        plugins = marketplace["plugins"]
-        if len(plugins) != 1:
-            raise ValueError("marketplace must list one plugin")
-        names = (root["name"], claude["name"], plugins[0]["name"])
-        versions = (root["version"], claude["version"], plugins[0]["version"])
-        if names != ("code-factory",) * 3:
+        manifests = [json.loads(path.read_text(encoding="utf-8")) for path in MANIFESTS]
+        entries = []
+        for manifest in manifests:
+            if "plugins" in manifest:
+                if len(manifest["plugins"]) != 1:
+                    raise ValueError("marketplace must list one plugin")
+                entries.append(manifest["plugins"][0])
+            else:
+                entries.append(manifest)
+        names = tuple(entry["name"] for entry in entries)
+        versions = tuple(entry["version"] for entry in entries)
+        if names != ("code-factory",) * len(MANIFESTS):
             raise ValueError(f"plugin names differ: {names}")
-        if versions != ("0.4.0",) * 3:
+        if versions != ("0.4.0",) * len(MANIFESTS):
             raise ValueError(f"plugin versions differ: {versions}")
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"manifest check failed: {error}", file=sys.stderr)
