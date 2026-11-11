@@ -69,6 +69,21 @@ Write both kinds the same way. One row each, in a table with the header
 - Reference an existing spec requirement by its ID; do not restate it. When
   the repository has its own spec format, write new spec rows in that format.
 
+State invariants up front. When the change touches one of these, add plan
+requirements, each with a proof, that answer:
+
+- **State machine:** how each terminal state becomes final, its one writer,
+  and what readers may infer.
+- **Authentication or token classes:** which store each class reads, and its
+  refusal on each route.
+- **Feature-flag rollout:** behaviour with the flag off stays unchanged,
+  proved by one flags-off test that CI runs.
+- **Unauthenticated entry point:** the cost bound per request, in queries,
+  connections, and writes, and its isolation from capacity that others share.
+
+An invariant the plan leaves out comes back in every review pass, each time
+from a new side.
+
 Every requirement has a proof: a test (name it, existing or to be written) or
 a command with its expected result. Mark proofs that need a person as manual.
 A test that proves a spec requirement carries the repository's backlink when
@@ -238,10 +253,13 @@ Attack, in order:
    cannot support as written.
 6. Missing cases: concurrency, dependency failure, retries, restart and
    recovery, limits, security, migration and rollback, older clients.
-7. Delivery: a task that leaves an invalid state; lanes called disjoint that
+7. Underspecified invariants: a state readable before it is final; an
+   identity or token class inferred rather than marked; behaviour with the
+   flag off; shared capacity reachable without an account.
+8. Delivery: a task that leaves an invalid state; lanes called disjoint that
    share files or a contract; a PR that cannot pass CI and does not say so; a
    verification that neither a local run nor CI can execute.
-8. Non-goals that hide work the goals need.
+9. Non-goals that hide work the goals need.
 
 Try to refute each finding before you report it. Report only real defects.
 No style comments. Prefer one strong finding over several weak ones.
