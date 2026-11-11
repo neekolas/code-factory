@@ -16,6 +16,9 @@ SKILL.md and the pass request, and read only its final message.
   `<run dir>/reviews/<pr>-<n>/`. Otherwise use
   `~/.agents/runs/reviews/<YYYY-MM-DD>-<repo>-<id>/`, or
   `$TMPDIR/agents-runs/reviews/...` when that is not writable.
+- **Don't report.** Optional: accepted or deferred findings, by ID and title.
+  Never implementer reports or fix accounts, not even framed as claims to
+  break.
 - **Optional.** A prior reviewed commit: review only the changes since it.
   `cross-model`: add one finder from the other provider, with the same kind
   of brief, through [calling-codex](../../calling-codex/SKILL.md) or
@@ -40,6 +43,7 @@ Findings:
 - <id> [CRITICAL|MAJOR|MINOR] [bug|vacuous-test|verification-gap]
   <file>:<line> - <title>
   Status: CONFIRMED | UNPROVEN
+  Invariant: <the property it breaks, in a few words>
   Scenario: <trigger, faulty path, wrong result>
   Evidence: <file:line trace>
   Test: <the smallest failing test>

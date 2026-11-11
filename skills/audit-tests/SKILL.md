@@ -85,6 +85,7 @@ A failing retained test can expose a product bug; investigate before deleting.
 4. Grade each test.
    - Evaluate behavior value, bug signal, brittleness, uniqueness, setup quality, flakiness risk, runtime cost, and maintenance burden.
    - Assign one action: `keep`, `delete`, `merge`, `upgrade`, `helperize`, or `investigate`.
+   - When workers graded the tests, have one refuter per module try to disprove its non-keep verdicts. Never start one per test.
 
 5. Review across modules.
    - Deduplicate tests that cover the same behavior and inputs.

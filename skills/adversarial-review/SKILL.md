@@ -21,12 +21,24 @@ orchestrator starts a pass are in [format.md](references/format.md).
   shared state that one area changes and another uses. Add a finder for one
   concern across the whole change only when that concern, such as
   authorization, cuts across areas. Every changed file has a finder.
+- **Audit the tests.** When the change touches code, one finder takes test
+  quality as its concern: give it the path to
+  [audit-tests](../audit-tests/SKILL.md) and the changed tests and test
+  support code.
+- **Keep the pass small.** Use at most five finders, the test audit
+  included. If five cannot cover the change in parts they can read in full,
+  ask the user before starting more.
 - **Neutral briefs.** Give each finder its files, the diff command, the goals
   and requirements as claims to break, and the base `REVIEW.md` as written.
-  Never pass the implementer's report or any claim that the change is
-  correct or tested. Use the [finder role](references/finder.md).
+  Never pass the implementer's report, a fix account, or any claim that the
+  change is correct or tested, not even framed as claims to break. A "don't
+  report" list of accepted or deferred findings is allowed. Use the
+  [finder role](references/finder.md).
 - **Disprove before reporting.** Wait for every finder, merge duplicates, and
-  check each finding against the code. Refute a finding only with a cited
+  check each finding against the code. One verifier checks every finding:
+  you, or, when any finding is CRITICAL or MAJOR and you run below the
+  frontier reviewer effort, one verifier agent at that effort. Never start a
+  verifier per finding. Refute a finding only with a cited
   line that makes its trigger impossible on its own path, or a run that shows
   correct behaviour. A check in today's callers does not refute or downgrade
   a defect in code that other callers can reach, or a check that the change
@@ -36,8 +48,9 @@ orchestrator starts a pass are in [format.md](references/format.md).
   the worktree as you found it.
 - **Fail closed.** If finders cannot start or the worktree is not the clean
   target, report BLOCKED. Never review in your own context instead.
-- **Models.** You and the finders use the reviewer model and effort from
-  [model-choice](../model-choice/SKILL.md).
+- **Models.** You use the reviewer model and effort from
+  [model-choice](../model-choice/SKILL.md). Finders use its review finder
+  row (`high`).
 - **Hosts.** Finders are the `review-finder` agent (`code-factory:review-finder`
   in Claude Code). In Codex, spawn each finder with `model`,
   `reasoning_effort`, and `fork_turns: "none"`, and give it the finder role

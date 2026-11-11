@@ -4,7 +4,7 @@
   "prompt": "skills/adversarial-review/references/finder.md",
   "claude": {
     "model": "opus",
-    "effort": "xhigh",
+    "effort": "high",
     "tools": "Read, Grep, Glob, Bash, WebFetch, WebSearch"
   },
   "opencode": {

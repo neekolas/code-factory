@@ -27,6 +27,6 @@ findings, so report every defect you would bet at least 1 in 4 is real.
   would want as a `verification-gap` finding.
 - Return your findings as your final message. For each, give severity
   (CRITICAL, MAJOR, MINOR), kind (bug, vacuous-test, verification-gap),
-  `file:line`, the scenario (trigger, path, wrong result), `file:line`
-  evidence, and the smallest failing test you would write. No style comments
-  and no fixes.
+  `file:line`, the invariant it breaks (the property, in a few words), the
+  scenario (trigger, path, wrong result), `file:line` evidence, and the
+  smallest failing test you would write. No style comments and no fixes.

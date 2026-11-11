@@ -13,6 +13,7 @@ description: Default models and effort levels for implementation, review, chores
 | Implementer (frontier) | `gpt-6-astra` | `high` |
 | Reviewer (standard) | Opus 5.5 (`opus`) | `xhigh` |
 | Reviewer (frontier) | Opus 5.5 (`opus`) | `max` |
+| Review finder | Opus 5.5 (`opus`) | `high` |
 | Chore | Sonnet 5.5 (`sonnet`) | `medium` |
 | Fast (code scanning and research) | Haiku (`haiku`) | Default |
 
@@ -24,6 +25,7 @@ description: Default models and effort levels for implementation, review, chores
 | Implementer (frontier) | [implementer_frontier](agents/implementer_frontier.toml) | `gpt-6-astra` | `high` |
 | Reviewer (standard) | [reviewer_standard](agents/reviewer_standard.toml) | `gpt-6.1-sol` | `xhigh` |
 | Reviewer (frontier) | [reviewer_frontier](agents/reviewer_frontier.toml) | `gpt-6.1-sol` | `max` |
+| Review finder | None; spawned directly | `gpt-6.1-sol` | `high` |
 | Chore | [chore](agents/chore.toml) | `gpt-6-luna` | `high` |
 | Fast (code scanning and research) | [fast](agents/fast.toml) | `gpt-6-luna` | `medium` |
 
@@ -37,6 +39,12 @@ cp -n agents/*.toml /path/to/project/.codex/agents/
 
 For personal agents, use `~/.codex/agents/` instead. These are the
 [Codex agent locations](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents).
+
+## Review passes
+
+In an `adversarial-review` pass, finders run at the review finder row. The
+one verifier runs at the standard reviewer row, or the frontier row when any
+finding is CRITICAL or MAJOR.
 
 ## Effort levels
 

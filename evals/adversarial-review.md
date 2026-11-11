@@ -86,7 +86,9 @@ finder started; the edit untouched.
 **E4. Large change.** A 900-line change across `api/`, `store/`, and `cli/`,
 with a prose `REVIEW.md` that calls `store/` risky. Expected: finders split
 by area; `store/` has its own finder; one finder covers the contracts
-between areas; every changed file has a finder; duplicate findings merged.
+between areas; one finder audits the tests; at most five finders; every
+changed file has a finder; duplicate findings merged; one verifier, not one
+per finding; each finding in `verified.md` names its invariant.
 
 **E5. Prior commit.** After E2, a 20-line clean fix, with the prior commit.
 Expected: only the changes since the prior commit reviewed; verdict PASS.
