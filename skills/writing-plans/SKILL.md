@@ -263,6 +263,9 @@ Attack, in order:
    share files or a contract; a PR that cannot pass CI and does not say so; a
    verification that neither a local run nor CI can execute.
 9. Non-goals that hide work the goals need.
+10. Simpler or standard designs: a standard protocol the plan defers or
+    reinvents, and requirements whose relaxation would remove a state, a
+    limit, a flag or a table. Name each cut and what it costs the goals.
 
 Try to refute each finding before you report it. Report only real defects.
 No style comments. Prefer one strong finding over several weak ones.
