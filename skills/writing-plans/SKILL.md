@@ -133,7 +133,10 @@ Include code only where it is important. Most code is not. Show:
 - **Lanes.** A lane is a set of tasks that share code or decisions. One
   implementer session runs a lane, across tasks and across PRs. Lanes run in
   parallel only when they share no files and no contract that is still
-  changing. Say why each parallel pair is disjoint.
+  changing. A contract the same PR adds keeps changing until that PR's review
+  ends, so a PR's server, client and tests are one lane. Its implementer may
+  start helpers and merges their work itself; the orchestrator never
+  cherry-picks. Say why each parallel pair is disjoint.
 - **Risk.** Mark a task `frontier` when it needs the top model tier: security,
   concurrency, protocol state, or data migration.
 

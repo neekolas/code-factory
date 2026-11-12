@@ -15,7 +15,7 @@ get user approval for models and effort levels through the approved plan or
 attempts can move standard work to the approved frontier model.
 
 - Use native orchestration tools. Let the agent choose task order and parallel work within the approved plan.
-- Give each PR one primary worktree. Use temporary worktrees for independent work, integrate before review, and delete them when finished.
+- Give each PR one primary worktree. Its implementer may use temporary worktrees for independent helper work, integrate with merges before review, and delete them when finished. The orchestrator never cherry-picks.
 - Give each PR one implementer agent. Reuse it for implementation, review fixes, CI failures, and PR feedback, review-bot comments included. Do not start a new fix agent per finding.
 - Implementers enter their worktree, with `EnterWorktree` where the host has it, and edit with the host's edit tools so edit hooks apply. They never write repository files through the shell. An orchestrator pinned to one worktree cannot edit another; send small follow-up fixes to that lane's implementer.
 - Claude Code runs Claude models, and Codex runs Codex models, as native subagents. Run an approved model from the other provider through [calling-codex](../calling-codex/SKILL.md) from Claude Code or [calling-claude](../calling-claude/SKILL.md) from Codex. A `calling-codex` or `calling-claude` lane gets feedback only between turns; stop and resume it to change direction.
