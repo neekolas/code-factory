@@ -39,13 +39,15 @@ skill only when the repository has no command for the job.
 ## Review flow
 
 `orchestrate-execution` runs one `adversarial-review` pass on each PR
-before its first push, and one more for each major or architectural change
-after that push. A coordinator on the reviewer model splits the change so
-each finder can read its part in full: one finder for a small change, one
-per area for a large one, plus a finder for contracts between areas. It
-tries to disprove each finding and writes `verified.md`. The PR's
-implementer reproduces each bug before fixing it, and fixes each finding or
-refutes it with evidence. A repository can guide reviews with a `REVIEW.md`
+before its first push, and one more for each fix that is a new design and
+each major or architectural change after that push. A pass is small. A coordinator on the reviewer model
+splits the change among at most five finders at `high` effort, so each can
+read its part in full: one finder for a small change, one per area for a
+large one, a finder for contracts between areas, and a test-audit finder for
+code changes. One verifier tries to disprove every finding and writes
+`verified.md`. The orchestrator groups findings by the invariant they break
+and sends one fix per group to the PR's implementer. It reproduces each bug
+before fixing it, and fixes each finding or refutes it with evidence. A repository can guide reviews with a `REVIEW.md`
 file in any format; see [the formats](skills/adversarial-review/references/format.md).
 
 Claude Code and Codex run their own models as native subagents. Models
