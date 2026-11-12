@@ -31,12 +31,12 @@ def main():
         versions = tuple(entry["version"] for entry in entries)
         if names != ("code-factory",) * len(MANIFESTS):
             raise ValueError(f"plugin names differ: {names}")
-        if versions != ("0.4.0",) * len(MANIFESTS):
+        if versions != ("0.4.1",) * len(MANIFESTS):
             raise ValueError(f"plugin versions differ: {versions}")
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"manifest check failed: {error}", file=sys.stderr)
         return 1
-    print("manifest names and versions match: code-factory 0.4.0")
+    print("manifest names and versions match: code-factory 0.4.1")
     return 0
 
 
