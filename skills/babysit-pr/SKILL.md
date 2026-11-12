@@ -129,7 +129,10 @@ else                                                           → STANDALONE
    is no default reviewer triage or fix-check turn. In an
    `orchestrate-execution` run, only a major or architectural repair gets an
    adversarial review pass.
-   Resolve the lowest merge conflict first. Then apply all
+   Resolve the lowest merge conflict first, once per round: in a draft stack,
+   collect the round's events, then carry one merge of the base up the stack.
+   A conflict only in generated files, budget numbers or index rows waits for
+   the next round unless it blocks CI that someone needs now. Then apply all
    verified code fixes from bottom to top. After each lower-branch change,
    restack and check higher branches again. Run fast, cheap local checks,
    not the full repository CI suite. Keep slow required checks pending for
