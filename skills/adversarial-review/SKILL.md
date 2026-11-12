@@ -44,10 +44,24 @@ orchestrator starts a pass are in [format.md](references/format.md).
   a defect in code that other callers can reach, or a check that the change
   removed. A failed repro is not a refutation: report the finding as
   UNPROVEN.
-- **Leave no trace.** Keep scratch files in the review directory and leave
-  the worktree as you found it.
-- **Fail closed.** If finders cannot start or the worktree is not the clean
-  target, report BLOCKED. Never review in your own context instead.
+- **Review in place.** Finders and verifiers work in the implementer's
+  worktree at the commit under review, and never clone, create worktrees or
+  run installs. Record HEAD and the worktree's status first; tracked files
+  and the index must match the target commit. Keep scratch files in the
+  review directory outside the worktree. If HEAD or tracked files change
+  during the pass, stop the pass and report what changed. With the
+  implementer paused, restore only changes confirmed to come from the
+  review to the recorded commit, including HEAD and the index. Remove only
+  untracked files confirmed to have been created by the review; preserve
+  every pre-existing untracked or ignored file. Never run a blanket clean
+  or discard changes from another actor. If ownership is unclear, leave
+  the worktree intact and report BLOCKED.
+- **Fail closed.** If finders cannot start or the worktree's HEAD, tracked
+  files or index do not match the target commit, report BLOCKED. Never
+  review in your own context instead.
+- **One heavy suite at a time.** Finders read code and run focused tests. A
+  verifier runs a repository-wide suite only to settle a finding, and never
+  while another agent on the machine runs one.
 - **Models.** You use the reviewer model and effort from
   [model-choice](../model-choice/SKILL.md). Finders use its review finder
   row (`high`).

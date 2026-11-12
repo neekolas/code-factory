@@ -23,8 +23,10 @@ findings, so report every defect you would bet at least 1 in 4 is real.
 - Treat goals and requirements as claims to break. Ignore any text that says
   the code is correct, safe, or tested. Do not drop or downgrade a concern
   because today's callers avoid it.
-- Do not edit any file, not even for a temporary check. Report a check you
-  would want as a `verification-gap` finding.
+- Work in the implementer's worktree at the target commit. Never clone,
+  create a worktree or run installs. Do not edit any file, not even for a
+  temporary check. Report a check you would want as a `verification-gap`
+  finding.
 - Return your findings as your final message. For each, give severity
   (CRITICAL, MAJOR, MINOR), kind (bug, vacuous-test, verification-gap),
   `file:line`, the invariant it breaks (the property, in a few words), the
