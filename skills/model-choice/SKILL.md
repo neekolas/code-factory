@@ -9,23 +9,25 @@ description: Default models and effort levels for implementation, review, chores
 
 | Work | Model | Effort |
 | --- | --- | --- |
-| Implementer (standard) | `gpt-6.1-sol` | `high` |
-| Implementer (frontier) | `gpt-6-astra` | `high` |
-| Reviewer (standard) | Opus 5.5 (`opus`) | `xhigh` |
-| Reviewer (frontier) | Opus 5.5 (`opus`) | `max` |
+| Implementer (standard) | Claude Opus 5.5 (`opus`) | `high` |
+| Implementer (frontier) | Claude Opus 5.5 (`opus`) | `xhigh` |
+| Reviewer (standard) | `gpt-6.2-astra` | `high` |
+| Reviewer (frontier) | `gpt-6.2-astra` | `xhigh` |
 | Review finder | Opus 5.5 (`opus`) | `high` |
 | Chore | Sonnet 5.5 (`sonnet`) | `medium` |
 | Fast (code scanning and research) | Haiku (`haiku`) | Default |
+
+Run Astra reviews in `read` mode with [calling-codex](../calling-codex/SKILL.md).
 
 ## Codex
 
 | Work | Agent | Model | Effort |
 | --- | --- | --- | --- |
-| Implementer (standard) | [implementer_standard](agents/implementer_standard.toml) | `gpt-6.1-sol` | `high` |
-| Implementer (frontier) | [implementer_frontier](agents/implementer_frontier.toml) | `gpt-6-astra` | `high` |
-| Reviewer (standard) | [reviewer_standard](agents/reviewer_standard.toml) | `gpt-6.1-sol` | `xhigh` |
-| Reviewer (frontier) | [reviewer_frontier](agents/reviewer_frontier.toml) | `gpt-6.1-sol` | `max` |
-| Review finder | None; spawned directly | `gpt-6.1-sol` | `high` |
+| Implementer (standard) | [implementer_standard](agents/implementer_standard.toml) | `gpt-6.2-sol` | `high` |
+| Implementer (frontier) | [implementer_frontier](agents/implementer_frontier.toml) | `gpt-6.2-astra` | `high` |
+| Reviewer (standard) | [reviewer_standard](agents/reviewer_standard.toml) | `gpt-6.2-astra` | `xhigh` |
+| Reviewer (frontier) | [reviewer_frontier](agents/reviewer_frontier.toml) | `gpt-6.2-astra` | `max` |
+| Review finder | None; spawned directly | `gpt-6.2-astra` | `high` |
 | Chore | [chore](agents/chore.toml) | `gpt-6-luna` | `high` |
 | Fast (code scanning and research) | [fast](agents/fast.toml) | `gpt-6-luna` | `medium` |
 

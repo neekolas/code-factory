@@ -105,7 +105,7 @@ Our security auditor has prepared a list of potential vulnerabilities in `findin
 - Do not push anything. Just keep a local branch with all the exploit/refutation code and the findings.
 ```
 
-Running this in Daybreak means you only have access to `gpt-6`, which is not my favorite model. I usually then try an Opus 5.5 session with dynamic workflows to do a second pass over the output with a prompt like:
+I usually then try an Opus 5.5 session with dynamic workflows to do a second pass over the output with a prompt like:
 
 ```
 Using dynamic workflows, adversarially review all the security audit findings in `findings/`. Start with REFUTED, NARROWED, and UNPROVEN findings. Correct any incorrect refutations and exploits, and make sure that the statuses, severity levels, and exploitation scenarios are correct. Rebuild `report.md` when done.

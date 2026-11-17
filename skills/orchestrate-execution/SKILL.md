@@ -25,6 +25,8 @@ attempts can move standard work to the approved frontier model.
 
 ## Review
 
+Include the PR's primary worktree path in each review brief.
+
 Run [adversarial-review](../adversarial-review/SKILL.md) passes. Give each pass a directory under `reviews/`. A pass is small: at most five finders, a test-audit finder among them on every code PR, one verifier, and no fix agent but the owning implementer, which has the context. Tell the user before a run will use more agents. Finders get the plan requirements, the spec or ADR, and the diff, plus an optional "don't report" list; never implementer reports or fix accounts.
 
 - Run one pass on each PR before its first push. MINOR findings do not hold the push; they go to the first babysit-pr round.
