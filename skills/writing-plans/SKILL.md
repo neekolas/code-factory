@@ -27,12 +27,16 @@ only when the user explicitly invokes it.
 
 ## 2. Write
 
-Follow `working-with-ref` when the user asks for Ref or project rules
-require it. This plugin bundles the Plans MCP endpoint; discover the
-connected tools in the current host. Ref access is required in that case.
-Otherwise
-write `docs/plans/YYYY-MM-DD-<slug>.md`, or the path the user names. The format
-is the same in both places.
+Use an external artifact service when the user requests one, project rules
+require one, or the plan already lives there. Prefer OpenArtifacts if available
+and the choice is open. Check access through the host before writing. If the
+required service is unavailable, report the access problem.
+
+For local plans, write `docs/plans/YYYY-MM-DD-<slug>.md` or the path the user
+names. Use the same plan format in both places.
+
+Answer questions about the plan in the active session. Update the plan with
+revisions that result from the discussion.
 
 Size the plan to the change. A small fix is a lead, a requirements table, and
 one task. Leave out a section that would say nothing, except `Spec changes`,
@@ -197,9 +201,6 @@ Or: "Ask at execution".
 <Added during execution: deviations, issues found, repository stumbling blocks.>
 ```
 
-In Ref, follow `working-with-ref` for the title line, task headers, and
-review requests. Keep the other sections.
-
 ## 3. Adversarial review
 
 Use a fresh independent reviewer when the host supports one. If no such
@@ -212,12 +213,13 @@ review has the highest return of any review.
 
 - **Reviewer:** the reviewer model from `model-choice`, in a fresh session.
   A different model is optional; independent context is required.
-- **Input:** the plan's Ref ID or existing file path and the repository path.
-  A reviewer reads Ref directly; give it section references and check its
-  Plans tool access. Include the absolute path to this plugin's audit-tests skill.
+- **Input:** the plan's link, ID, or existing file path and the repository path.
+  When the plan lives in an external artifact service, check the reviewer's
+  access and give it section references so it can read the plan directly.
+  Include the absolute path to this plugin's audit-tests skill.
   Do not include the conversation or your reasons.
-- **Output:** the reviewer's final message to you. Never put a review in Ref,
-  a doc, an artifact, a PR comment, or a file. If the transport needs a file
+- **Output:** the reviewer's final message to you. Deliver the review in the
+  session that requested it. If the transport needs a file
   (`codex exec -o`), read it and delete it.
 - **Claude Code:** an `Agent` call with `subagent_type: "general-purpose"`
   that sets `model` and `effort` to the reviewer tier from `model-choice`
@@ -231,8 +233,8 @@ Prompt:
 
 ```text
 Adversarially review this implementation plan. Assume it is flawed and find how.
-Plan: <Ref ID or file path>. Sections: <references>. Read Ref directly with
-the Plans tools; use section reads and follow dependencies as needed.
+Plan: <link, ID, or file path>. Sections: <references>. Read the plan directly
+and follow dependencies across sections as needed.
 Repository: <path>. Read the repository's instructions
 and the specs the plan cites. Do not edit anything. Do not start subagents.
 Test quality: <absolute path to audit-tests/SKILL.md>.

@@ -95,7 +95,7 @@ keeps the dependency, applies the latest decision, and stays within its lane.
 Hold the task, model, and review prompt constant. This tests context handling
 separately from reviewer quality.
 
-For a Ref-hosted plan, let agents read Ref directly. Pass IDs and section
-references, and check that later reads cover changed decisions without
-exporting or relaying the full document. Include an edit that moves section
-line numbers to test whether the agent checks headings or requirement IDs.
+For a plan in an external artifact service, let agents read it directly. Pass
+IDs and section references, and check that later reads cover changed decisions
+without exporting or relaying the full document. Include an edit that moves
+section line numbers to test whether the agent checks headings or requirement IDs.

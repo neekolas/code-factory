@@ -19,7 +19,6 @@ unnecessary work. Record failures with concrete examples.
 | `calling-codex` | From Claude Code, run a Codex lane through a 12-minute build, stop it, and resume it with new instructions. |
 | `calling-claude` | From Codex, run a Claude review in read mode, resume it once, then kill a second run and resume it with new instructions. |
 | `session-retro` | Review a completed run with command failures and propose the smallest repository fixes. |
-| `working-with-ref` | Answer a question about a Ref plan, then apply an approved decision to that plan. |
 | `babysit-pr` | Monitor a test PR with one failing check and one review comment until it is ready. |
 | `audit-tests` | Audit a test directory with duplicate tests and weak assertions; report precise changes. |
 
@@ -63,5 +62,7 @@ For the delivery workflow, also check these cases:
 - Cloud has no nested CLI, local transcript, or native agent tools. The agent
   completes available work and reports missing independent review and remote
   evidence. It does not claim PASS or install a daemon to bypass the gap.
-- Ref has no credential binding. The agent names `REF_API_KEY` and the
-  `x-ref-api-key` header without reading or printing the secret.
+- A plan lives in an external artifact service. The agent answers a question
+  in the session, then applies the resulting revision to the plan once agreed.
+- The required external artifact service is unavailable. The agent reports
+  the access problem without exposing credentials.

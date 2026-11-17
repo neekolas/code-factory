@@ -159,10 +159,12 @@ Put every proposal in one review document. `agents-md`, `skill`, and `remove`
 proposals show the full before and after text. `script` and `check` proposals
 show the intended change and the test.
 
-- In Claude Code: a Claude doc (Artifact), opened for the user.
-- In Codex: the document surface the user requested, or a Markdown file
-  opened in the app when available. Use Ref only when requested or required
-  (see `working-with-ref`).
+Use an external artifact service when the user requests one or project rules
+require one. Prefer OpenArtifacts if available and the choice is open.
+Otherwise, use the document surface the user requested or the host default.
+
+- In Claude Code, open a Claude doc (Artifact) for the user.
+- In Codex, use a Markdown file and open it in the app when available.
 
 For each proposal: the title, kind, and target; before and after; the
 evidence (signature IDs, confirmed counts, one scrubbed sample, and the

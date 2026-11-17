@@ -1,6 +1,6 @@
 # Code Factory
 
-Code Factory is a plugin with twelve skills, six Codex agent presets, and one
+Code Factory is a plugin with eleven skills, six Codex agent presets, and one
 review agent. It helps an
 agent plan software changes, implement approved plans, review tests, and care
 for pull requests. Claude Code, Codex, and Factory Droid load it as a plugin. The package supports the
@@ -19,7 +19,6 @@ links made by the install script.
 | `calling-codex` | Run, watch, resume, and stop Codex CLI sessions from a non-Codex agent. |
 | `calling-claude` | Run and resume headless Claude Code from a non-Claude agent. |
 | `session-retro` | Review a finished run and propose improvements. |
-| `working-with-ref` | Work with plans in Ref. |
 | `babysit-pr` | Collect and address one round of PR feedback. |
 | `audit-tests` | Find weak or duplicate tests. |
 | `security-audit` | Hunt, validate, and plan fixes for vulnerabilities in one commit. |
@@ -78,13 +77,12 @@ droid plugin install code-factory@code-factory --scope user
 ```
 
 Use `--scope project` to install for one project. Restart Droid after installing.
-The native Factory package includes all twelve skills, the `review-finder`
-droid, and the Plans MCP server. The review droid inherits the caller's model
-and uses Factory's read-only tool policy.
+The native Factory package includes all eleven skills and the `review-finder`
+droid. The review droid inherits the caller's model and uses Factory's
+read-only tool policy.
 
-Set `REF_API_KEY` before starting Droid to use Plans. Skills that call other
-providers need the corresponding Codex or Claude CLI and credentials. Boat
-needs its CLI and gateway setup; see the skill for details.
+Skills that call other providers need the corresponding Codex or Claude CLI
+and credentials. See the Boat skill for its CLI and gateway setup.
 
 Remove the plugin and marketplace:
 
@@ -111,7 +109,7 @@ codex plugin marketplace remove code-factory
 
 ### Codex app and Cloud
 
-The portable package uses root `plugin.json`, `skills/`, and `mcp.json`.
+The portable package uses root `plugin.json` and `skills/`.
 Install it through a marketplace supported by your host. Local marketplace
 support can differ by surface. Installing it on a local machine does not
 prove that it is installed in a Cloud task. Check the task's skill list and
@@ -122,41 +120,6 @@ list, writable paths, GitHub access, and services. They do not require a
 nested Codex CLI. Cloud tasks preserve run records as supported artifacts.
 When independent review or required CI evidence is unavailable, the task
 reports that gap and supplies a handoff.
-
-### Ref credentials
-
-Use the environment variable **`REF_API_KEY`**. Get the key from
-[Ref keys](https://ref.tools/keys). The Ref MCP server is
-`https://api.plan.ref.tools/mcp`. Send the variable's value in the
-**`x-ref-api-key`** header. Keep the value in the host's environment or
-secret store. Do not commit it or put it in agent prompts.
-
-The plugin bundles the endpoint in portable `mcp.json`. Claude Code's
-compatibility file, `.mcp.json`, also binds `${REF_API_KEY}` to the header.
-Set the variable before starting Claude Code. It supports
-[header variable expansion](https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcpjson).
-
-The portable MCP format does not expand environment variables in HTTP
-headers and has no portable secret binding. The host must supply that
-binding. Do not put `${REF_API_KEY}` in portable `mcp.json`; it would be
-sent as literal text. See the [portable MCP rules](https://agent-plugins.org/plugin-authors/mcp-servers).
-
-For an existing native Codex connection, the supported binding is:
-
-```toml
-[mcp_servers.Plans]
-url = "https://api.plan.ref.tools/mcp"
-env_http_headers = { "x-ref-api-key" = "REF_API_KEY" }
-```
-
-Use that fallback only when the host cannot bind a secret to the bundled
-server. Avoid two active Plans connections. The native option is documented
-in [Codex MCP configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
-For app or Cloud use, verify a supported host secret binding and access to
-`api.plan.ref.tools`. Do not assume that the host has such a binding. A shell variable alone does not
-prove that a host-managed MCP connection received the key. Check tool access
-without printing the key. The package bundles discovery; authenticated app
-and Cloud installation still need an end-to-end check.
 
 ### OpenCode
 
@@ -176,6 +139,12 @@ To remove only the links that this script made, run:
 scripts/install-opencode.sh --uninstall
 ```
 
+## External artifact services
+
+Use an external artifact service when the user requests one, project rules
+require one, or the document already lives there. Prefer OpenArtifacts when
+the host has access and the user or project has left the choice open.
+
 ## Repository layout
 
 | Path | Contents |
@@ -189,9 +158,7 @@ scripts/install-opencode.sh --uninstall
 | `scripts/` | Agent generator, version check, and OpenCode installer. |
 | `.claude-plugin/` | Claude Code plugin and marketplace manifests. |
 | `plugin.json` | Portable plugin manifest and OpenAI UI metadata. |
-| `mcp.json` | Portable Ref Plans MCP endpoint. |
-| `.mcp.json` | Claude Code Ref endpoint and environment header binding. |
-| `skills/*/agents/openai.yaml` | Skill UI metadata; Ref tool dependency where required. |
+| `skills/*/agents/openai.yaml` | Skill UI metadata. |
 | `evals/` | Manual skill evaluation tasks. |
 
 ## Check the repository
